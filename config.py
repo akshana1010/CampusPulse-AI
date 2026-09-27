@@ -18,6 +18,11 @@ class Config:
     # ── Security ─────────────────────────────────────────────────────────────
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-production")
 
+    # ── Default Admin Account ────────────────────────────────────────────────
+    ADMIN_ID = os.environ.get("ADMIN_ID", "admin")
+    ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@campuspulse.ai")
+    ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@12345")
+
     # ── Database ──────────────────────────────────────────────────────────────
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",

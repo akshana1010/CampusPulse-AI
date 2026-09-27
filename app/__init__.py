@@ -79,6 +79,7 @@ def create_app(config_class=None):
         }
 
     _ensure_schema(app)
+    _ensure_admin(app)
 
     return app
 
@@ -101,6 +102,44 @@ def _ensure_schema(app):
                     db.session.commit()
         except Exception:
             pass
+
+
+def _ensure_admin(app):
+    """
+    Ensure the default administrator account exists in the database.
+    Created safely on startup if missing; never duplicates or alters existing accounts.
+    Admin password is never logged or exposed.
+    """
+    with app.app_context():
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            if "users" not in inspector.get_table_names():
+                return
+
+            from app.models import User
+            admin_id = app.config.get("ADMIN_ID", "admin")
+            admin_email = (app.config.get("ADMIN_EMAIL") or "admin@campuspulse.ai").strip().lower()
+            admin_password = app.config.get("ADMIN_PASSWORD") or "Admin@12345"
+
+            existing = User.query.filter(
+                (User.email == admin_email) | (User.student_id == admin_id)
+            ).first()
+
+            if not existing:
+                admin_user = User(
+                    name="System Administrator",
+                    email=admin_email,
+                    student_id=admin_id,
+                    role="admin",
+                    is_active=True,
+                )
+                admin_user.set_password(admin_password)
+                db.session.add(admin_user)
+                db.session.commit()
+                app.logger.info(f"Initialized default administrator account: {admin_email}")
+        except Exception:
+            db.session.rollback()
 
 
 def _ensure_directories(app):
