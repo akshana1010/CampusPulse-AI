@@ -1,0 +1,107 @@
+<!-- templates/admin/dashboard.html -->
+{% extends "base.html" %}
+{% block title %}Admin Dashboard – CampusPulse AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Admin Dashboard</h1>
+      <p class="page-subtitle">Overview of all campus problem reports</p>
+    </div>
+    <a href="{{ url_for('admin.reports') }}" class="btn btn-outline">View All Reports →</a>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="stats-grid" role="region" aria-label="Key performance indicators">
+    <div class="stat-card stat-card--blue">
+      <span class="stat-icon" aria-hidden="true">📋</span>
+      <div class="stat-info">
+        <span class="stat-value">{{ total }}</span>
+        <span class="stat-label">Total Reports</span>
+      </div>
+    </div>
+    <div class="stat-card stat-card--yellow">
+      <span class="stat-icon" aria-hidden="true">⏳</span>
+      <div class="stat-info">
+        <span class="stat-value">{{ open_reports }}</span>
+        <span class="stat-label">Reported / Open</span>
+      </div>
+    </div>
+    <div class="stat-card stat-card--green">
+      <span class="stat-icon" aria-hidden="true">✅</span>
+      <div class="stat-info">
+        <span class="stat-value">{{ by_status.get('Resolved', 0) }}</span>
+        <span class="stat-label">Resolved</span>
+      </div>
+    </div>
+    <div class="stat-card stat-card--red">
+      <span class="stat-icon" aria-hidden="true">🚨</span>
+      <div class="stat-info">
+        <span class="stat-value">{{ high_critical }}</span>
+        <span class="stat-label">High/Critical Priority</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="charts-grid">
+    <div class="chart-card" role="img" aria-label="Reports by category chart">
+      <h2 class="chart-title">Reports by Category</h2>
+      <canvas id="categoryChart" width="400" height="300"></canvas>
+    </div>
+    <div class="chart-card" role="img" aria-label="Status distribution chart">
+      <h2 class="chart-title">Status Distribution</h2>
+      <canvas id="statusChart" width="300" height="300"></canvas>
+    </div>
+    <div class="chart-card chart-card--wide" role="img" aria-label="Daily submissions trend">
+      <h2 class="chart-title">Submissions (Last 30 Days)</h2>
+      <canvas id="trendChart" width="800" height="250"></canvas>
+    </div>
+  </div>
+
+  <!-- Recent Reports Table -->
+  <section class="section" aria-label="Recent reports">
+    <h2 class="section-title">Recent Reports</h2>
+    <div class="table-wrapper">
+      <table class="data-table" id="recent-reports-table">
+        <thead>
+          <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Title</th>
+            <th scope="col">Category</th>
+            <th scope="col">Priority</th>
+            <th scope="col">Status</th>
+            <th scope="col">Submitted</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in recent %}
+          <tr>
+            <td>#{{ report.id }}</td>
+            <td class="td-title">{{ report.title[:50] }}{% if report.title|length > 50 %}…{% endif %}</td>
+            <td><span class="badge badge--category">{{ report.category }}</span></td>
+            <td><span class="badge badge--priority badge--{{ report.priority | lower }}">{{ report.priority }}</span></td>
+            <td><span class="badge badge--status badge--status-{{ report.status | lower | replace(' ', '-') }}">{{ report.status }}</span></td>
+            <td>{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</td>
+            <td>
+              <a href="{{ url_for('admin.report_detail', report_id=report.id) }}"
+                 class="btn btn-sm btn-outline">Manage</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

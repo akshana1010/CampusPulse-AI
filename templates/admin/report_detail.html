@@ -1,0 +1,206 @@
+<!-- templates/admin/report_detail.html -->
+{% extends "base.html" %}
+{% block title %}Report #{{ report.id }} – Admin | CampusPulse AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <a href="{{ url_for('admin.reports') }}" class="back-link">← Back to All Reports</a>
+      <h1 class="page-title">Report #{{ report.id }}</h1>
+      <p class="page-subtitle">{{ report.title }}</p>
+    </div>
+    <div class="report-header-badges">
+      <span class="badge badge--category">{{ report.category }}</span>
+      <span class="badge badge--priority badge--{{ report.priority | lower }}" id="priority-badge">
+        {{ report.priority }}
+      </span>
+      <span class="badge badge--status badge--status-{{ report.status | lower | replace(' ', '-') }}"
+            id="status-badge">{{ report.status }}</span>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-main">
+
+      <!-- Description -->
+      <section class="detail-section">
+        <h2 class="detail-section-title">Description</h2>
+        <p class="detail-description">{{ report.description }}</p>
+        <p class="detail-meta">
+          By <strong>{{ report.author.name if report.author else 'Unknown' }}</strong>
+          ({{ report.author.email if report.author else '—' }})
+          · {{ report.created_at.strftime('%d %B %Y, %I:%M %p') if report.created_at else '—' }}
+        </p>
+      </section>
+
+      <!-- AI Analysis -->
+      {% if report.ai_summary %}
+      <section class="detail-section ai-panel">
+        <h2 class="detail-section-title"><span class="ai-chip">✨</span> AI Analysis</h2>
+        <div class="ai-panel-grid">
+          <div class="ai-field"><span class="ai-field-label">Summary</span>
+            <p class="ai-field-value">{{ report.ai_summary }}</p></div>
+          <div class="ai-field"><span class="ai-field-label">Predicted Category</span>
+            <span class="ai-field-value badge badge--category">{{ report.ai_category or '—' }}</span></div>
+          <div class="ai-field"><span class="ai-field-label">Sentiment</span>
+            <span class="ai-field-value sentiment-chip sentiment-chip--{{ report.ai_sentiment or 'neutral' }}">
+              {{ report.ai_sentiment or '—' }}</span></div>
+          {% if report.ai_confidence is not none %}
+          <div class="ai-field"><span class="ai-field-label">Confidence</span>
+            <div class="confidence-bar" role="progressbar"
+                 aria-valuenow="{{ (report.ai_confidence * 100)|int }}" aria-valuemin="0" aria-valuemax="100">
+              <div class="confidence-fill" style="width:{{ (report.ai_confidence * 100)|int }}%"></div>
+              <span class="confidence-label">{{ (report.ai_confidence * 100)|int }}%</span>
+            </div></div>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Photo -->
+      {% if report.image_path %}
+      <section class="detail-section">
+        <h2 class="detail-section-title">Photo</h2>
+        <img src="{{ url_for('static', filename=report.image_path) }}"
+             alt="Report photo" class="report-image" />
+      </section>
+      {% endif %}
+
+      <!-- Status Timeline -->
+      <section class="detail-section">
+        <h2 class="detail-section-title">Status Timeline</h2>
+        <ol class="timeline">
+          <li class="timeline-item timeline-item--done">
+            <span class="timeline-dot"></span>
+            <div class="timeline-content">
+              <span class="timeline-status">Reported</span>
+              <span class="timeline-meta">{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</span>
+            </div>
+          </li>
+          {% for entry in history %}
+          <li class="timeline-item timeline-item--done">
+            <span class="timeline-dot"></span>
+            <div class="timeline-content">
+              <span class="timeline-status">{{ entry.new_status }}</span>
+              <span class="timeline-meta">
+                {{ entry.changed_at.strftime('%d %b %Y') if entry.changed_at else '—' }}
+                · by {{ entry.changed_by_user.name if entry.changed_by_user else 'Admin' }}
+              </span>
+              {% if entry.note %}<p class="timeline-note">{{ entry.note }}</p>{% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+    </div>
+
+    <!-- Admin Controls Sidebar -->
+    <div class="detail-sidebar">
+
+      <!-- Update Status -->
+      <section class="detail-section admin-control-section">
+        <h2 class="detail-section-title">Update Status</h2>
+        <div class="admin-control-group">
+          <label for="new-status" class="form-label">New Status</label>
+          <select id="new-status" class="form-select">
+            {% for s in statuses %}
+            <option value="{{ s }}" {% if report.status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+          <label for="status-note" class="form-label">Note (optional)</label>
+          <textarea id="status-note" class="form-textarea" rows="2"
+                    placeholder="Add a note about this status change…"></textarea>
+          <button class="btn btn-primary btn--full" id="update-status-btn"
+                  data-report="{{ report.id }}">
+            Update Status
+          </button>
+        </div>
+      </section>
+
+      <!-- Override Priority -->
+      <section class="detail-section admin-control-section">
+        <h2 class="detail-section-title">Override Priority</h2>
+        <div class="admin-control-group">
+          <label for="new-priority" class="form-label">Priority Level</label>
+          <select id="new-priority" class="form-select">
+            {% for p in priorities %}
+            <option value="{{ p }}" {% if report.priority == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-outline btn--full" id="update-priority-btn"
+                  data-report="{{ report.id }}">
+            Override Priority
+          </button>
+        </div>
+      </section>
+
+      <!-- Admin Note -->
+      <section class="detail-section admin-control-section">
+        <h2 class="detail-section-title">Admin Notes</h2>
+        <div class="admin-control-group">
+          <textarea id="admin-note" class="form-textarea" rows="3"
+                    placeholder="Internal notes visible to student…">{{ report.admin_notes or '' }}</textarea>
+          <button class="btn btn-outline btn--full" id="save-note-btn"
+                  data-report="{{ report.id }}">
+            Save Note
+          </button>
+        </div>
+      </section>
+
+      <!-- Location -->
+      {% if report.latitude and report.longitude %}
+      <section class="detail-section">
+        <h2 class="detail-section-title">📍 Location</h2>
+        <p class="location-label-text">{{ report.location_label or 'Campus location' }}</p>
+        <div id="detail-map" class="detail-map" role="application"
+             data-lat="{{ report.latitude }}" data-lng="{{ report.longitude }}"></div>
+      </section>
+      {% endif %}
+
+      <!-- Danger Zone -->
+      <section class="detail-section danger-zone">
+        <h2 class="detail-section-title">Danger Zone</h2>
+        <button class="btn btn-danger btn--full" id="delete-report-btn"
+                data-report="{{ report.id }}">
+          Delete Report
+        </button>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script>
+  const mapEl = document.getElementById('detail-map');
+  if (mapEl && typeof L !== 'undefined') {
+    const lat = parseFloat(mapEl.dataset.lat);
+    const lng = parseFloat(mapEl.dataset.lng);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      const map = L.map('detail-map', { scrollWheelZoom: false }).setView([lat, lng], 17);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      const pinIcon = L.divIcon({
+        className: 'custom-map-pin',
+        html: '<div style="width:32px;height:32px;transform:translate(-16px,-32px);"><svg viewBox="0 0 24 24" width="32" height="32" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));"><path fill="#ef4444" stroke="#ffffff" stroke-width="1.5" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+
+      L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+      setTimeout(function () { map.invalidateSize(); }, 200);
+    }
+  }
+</script>
+{% endblock %}

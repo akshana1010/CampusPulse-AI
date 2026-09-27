@@ -1,0 +1,130 @@
+<!-- templates/admin/reports.html -->
+{% extends "base.html" %}
+{% block title %}All Reports – Admin | CampusPulse AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">All Reports</h1>
+      <p class="page-subtitle">{{ reports.total }} report{{ 's' if reports.total != 1 else '' }} found</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <form method="GET" action="{{ url_for('admin.reports') }}" class="filter-bar" id="filter-form" role="search">
+    <div class="filter-group">
+      <label for="filter-q" class="sr-only">Search</label>
+      <input type="text" id="filter-q" name="q" class="form-input form-input--sm"
+             placeholder="Search title or description…"
+             value="{{ current_filters.q }}" />
+    </div>
+
+    <div class="filter-group">
+      <label for="filter-category" class="sr-only">Category</label>
+      <select id="filter-category" name="category" class="form-select form-select--sm">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}" {% if current_filters.category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="filter-priority" class="sr-only">Priority</label>
+      <select id="filter-priority" name="priority" class="form-select form-select--sm">
+        <option value="">All Priorities</option>
+        {% for p in priorities %}
+        <option value="{{ p }}" {% if current_filters.priority == p %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="filter-status" class="sr-only">Status</label>
+      <select id="filter-status" name="status" class="form-select form-select--sm">
+        <option value="">All Statuses</option>
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if current_filters.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    <a href="{{ url_for('admin.reports') }}" class="btn btn-outline btn-sm">Reset</a>
+  </form>
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <table class="data-table" id="admin-reports-table" aria-label="Campus reports">
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Title</th>
+          <th scope="col">Author</th>
+          <th scope="col">Category</th>
+          <th scope="col">Priority</th>
+          <th scope="col">Status</th>
+          <th scope="col">Submitted</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in reports.items %}
+        <tr id="row-{{ report.id }}">
+          <td><a href="{{ url_for('admin.report_detail', report_id=report.id) }}">#{{ report.id }}</a></td>
+          <td class="td-title">{{ report.title[:60] }}{% if report.title|length > 60 %}…{% endif %}</td>
+          <td>{{ report.author.name if report.author else '—' }}</td>
+          <td><span class="badge badge--category">{{ report.category }}</span></td>
+          <td><span class="badge badge--priority badge--{{ report.priority | lower }}">{{ report.priority }}</span></td>
+          <td>
+            <select class="status-select" data-report-id="{{ report.id }}"
+                    id="status-select-{{ report.id }}" aria-label="Change status for report {{ report.id }}">
+              {% for s in statuses %}
+              <option value="{{ s }}" {% if report.status == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td>{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</td>
+          <td>
+            <a href="{{ url_for('admin.report_detail', report_id=report.id) }}"
+               class="btn btn-sm btn-outline">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="td-empty">No reports match your filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if reports.pages > 1 %}
+  <nav class="pagination" aria-label="Report pages">
+    {% if reports.has_prev %}
+    <a href="{{ url_for('admin.reports', page=reports.prev_num, **current_filters) }}" class="page-link">← Prev</a>
+    {% endif %}
+    {% for page_num in reports.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if page_num %}
+        <a href="{{ url_for('admin.reports', page=page_num, **current_filters) }}"
+           class="page-link {% if page_num == reports.page %}page-link--active{% endif %}">{{ page_num }}</a>
+      {% else %}
+        <span class="page-ellipsis">…</span>
+      {% endif %}
+    {% endfor %}
+    {% if reports.has_next %}
+    <a href="{{ url_for('admin.reports', page=reports.next_num, **current_filters) }}" class="page-link">Next →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

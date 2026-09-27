@@ -1,0 +1,17 @@
+<!-- templates/errors/413.html -->
+{% extends "base.html" %}
+{% block title %}413 – File Too Large | CampusPulse AI{% endblock %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-code">413</div>
+  <h1 class="error-title">File Too Large</h1>
+  <p class="error-message">
+    The file you tried to upload exceeds the maximum allowed size of 5&nbsp;MB.
+    Please resize your image and try again.
+  </p>
+  <a href="javascript:history.back()" class="btn btn-primary" style="margin-top:1rem">
+    ← Go Back
+  </a>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+<!-- templates/errors/403.html -->
+{% extends "base.html" %}
+{% block title %}403 – Access Forbidden | CampusPulse AI{% endblock %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-code">403</div>
+  <h1 class="error-title">Access Forbidden</h1>
+  <p class="error-message">
+    You don't have permission to view this page. If you believe this is a mistake,
+    please contact your campus administrator.
+  </p>
+  <a href="{{ url_for('index') }}" class="btn btn-primary" style="margin-top:1rem">
+    ← Back to Home
+  </a>
+</div>
+{% endblock %}

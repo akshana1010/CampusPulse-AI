@@ -1,0 +1,285 @@
+<!-- templates/student/campus_map.html -->
+{% extends "base.html" %}
+{% block title %}Campus Map – CampusPulse AI{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}" />
+<style>
+  /* ── Campus Map page layout ────────────────────────────────────────── */
+  .map-page { display: flex; flex-direction: column; height: calc(100vh - var(--nav-height)); }
+
+  .map-toolbar {
+    display: flex; align-items: center; gap: var(--space-md);
+    padding: var(--space-md) var(--space-xl);
+    background: var(--clr-bg-card);
+    border-bottom: 1px solid var(--clr-border);
+    flex-wrap: wrap;
+  }
+  .map-toolbar-title {
+    font-family: var(--font-display); font-size: 1.1rem; font-weight: 700;
+    color: var(--clr-text); display: flex; align-items: center; gap: var(--space-sm);
+    margin-right: auto;
+  }
+  .map-stat-pill {
+    background: var(--clr-bg-card-2); border: 1px solid var(--clr-border);
+    border-radius: var(--radius-full); padding: 4px 14px;
+    font-size: 0.8rem; color: var(--clr-text-muted);
+  }
+  .map-stat-pill strong { color: var(--clr-primary); }
+
+  /* Filter row */
+  .map-filters {
+    display: flex; gap: var(--space-sm); align-items: center;
+    padding: var(--space-sm) var(--space-xl);
+    background: rgba(26,29,39,0.7);
+    border-bottom: 1px solid var(--clr-border);
+    flex-wrap: wrap;
+  }
+  .filter-label { font-size: 0.78rem; color: var(--clr-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .filter-chip {
+    padding: 4px 12px; border-radius: var(--radius-full);
+    border: 1px solid var(--clr-border); background: transparent;
+    color: var(--clr-text-muted); font-size: 0.8rem; cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .filter-chip:hover  { border-color: var(--clr-primary); color: var(--clr-primary); }
+  .filter-chip.active { background: var(--clr-primary); border-color: var(--clr-primary); color: #fff; }
+
+  /* Map canvas – explicit height required for Leaflet to initialize */
+  #campus-map {
+    flex: 1;
+    height: calc(100vh - 160px);
+    min-height: 500px;
+    z-index: 1;
+  }
+
+  /* Popup overrides to match dark theme */
+  .leaflet-popup-content-wrapper {
+    background: var(--clr-bg-card) !important;
+    color: var(--clr-text) !important;
+    border: 1px solid var(--clr-border) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-lg) !important;
+  }
+  .leaflet-popup-tip { background: var(--clr-bg-card) !important; }
+  .popup-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+  .popup-meta  { font-size: 0.78rem; color: var(--clr-text-muted); margin-bottom: 8px; }
+  .popup-link  { font-size: 0.82rem; color: var(--clr-primary); text-decoration: none; }
+  .popup-link:hover { text-decoration: underline; }
+
+  /* Legend */
+  .map-legend {
+    background: var(--clr-bg-card); border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md);
+    font-size: 0.78rem;
+  }
+  .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* No-reports banner */
+  .map-empty {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 500; text-align: center; pointer-events: none;
+    background: rgba(26,29,39,0.9); border: 1px solid var(--clr-border);
+    border-radius: var(--radius-lg); padding: var(--space-xl);
+  }
+  .map-empty-icon { font-size: 2.5rem; margin-bottom: var(--space-sm); display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="map-page">
+
+  <!-- Toolbar -->
+  <div class="map-toolbar">
+    <span class="map-toolbar-title">🗺️ Campus Problem Map</span>
+    <span class="map-stat-pill">
+      <strong id="visible-count">–</strong> reports shown
+    </span>
+    <a href="{{ url_for('reports.submit') }}" class="btn btn-primary" style="font-size:0.85rem;padding:6px 14px;">
+      + Report Problem
+    </a>
+  </div>
+
+  <!-- Priority filter chips -->
+  <div class="map-filters">
+    <span class="filter-label">Filter:</span>
+    <button class="filter-chip active" data-filter="all"  id="f-all">All</button>
+    <button class="filter-chip" data-filter="Critical"    id="f-critical">🔴 Critical</button>
+    <button class="filter-chip" data-filter="High"        id="f-high">🟠 High</button>
+    <button class="filter-chip" data-filter="Medium"      id="f-medium">🟡 Medium</button>
+    <button class="filter-chip" data-filter="Low"         id="f-low">⚪ Low</button>
+    <button class="filter-chip" data-filter="Resolved"    id="f-resolved">✅ Resolved</button>
+  </div>
+
+  <!-- Map canvas -->
+  <div style="position:relative; flex:1; display:flex; flex-direction:column;">
+    <div id="campus-map"></div>
+    {% if total_reports == 0 %}
+    <div class="map-empty" id="map-empty-msg">
+      <span class="map-empty-icon">📍</span>
+      <p style="color:var(--clr-text-muted); font-size:0.9rem;">
+        No geolocated reports yet.<br>
+        Submit a report with a location to see it here.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ── Campus config from body data-attributes (set in base.html) ────────────
+  const cfg = window.CAMPUS_CONFIG || { lat: 28.6139, lng: 77.2090, zoom: 15, name: 'Campus' };
+
+  // ── Initialise map ─────────────────────────────────────────────────────────
+  const map = L.map('campus-map', {
+    zoomControl: true,
+    scrollWheelZoom: true,
+  }).setView([cfg.lat, cfg.lng], cfg.zoom);
+
+  // OpenStreetMap Standard Tile Layer
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  }).addTo(map);
+
+  setTimeout(function () {
+    map.invalidateSize();
+  }, 250);
+
+  // ── Priority → marker colour mapping ──────────────────────────────────────
+  const COLOURS = {
+    Critical : '#ef4444',
+    High     : '#f97316',
+    Medium   : '#eab308',
+    Low      : '#6b7280',
+    Resolved : '#22c55e',
+  };
+
+  function makeIcon(priority, status) {
+    const colour = status === 'Resolved' ? COLOURS.Resolved : (COLOURS[priority] || COLOURS.Low);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+        <path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22S28 23.33 28 14C28 6.27 21.73 0 14 0z"
+              fill="${colour}" stroke="rgba(0,0,0,.3)" stroke-width="1"/>
+        <circle cx="14" cy="14" r="6" fill="white" opacity=".9"/>
+      </svg>`;
+    return L.divIcon({
+      html: svg,
+      className: '',
+      iconSize: [28, 36],
+      iconAnchor: [14, 36],
+      popupAnchor: [0, -36],
+    });
+  }
+
+  // ── Legend ─────────────────────────────────────────────────────────────────
+  const legend = L.control({ position: 'bottomright' });
+  legend.onAdd = function () {
+    const div = L.DomUtil.create('div', 'map-legend');
+    div.innerHTML = Object.entries(COLOURS).map(([label, color]) =>
+      `<div class="legend-row">
+        <span class="legend-dot" style="background:${color}"></span>
+        <span style="color:var(--clr-text-muted)">${label}</span>
+      </div>`
+    ).join('');
+    return div;
+  };
+  legend.addTo(map);
+
+  // ── Fetch reports and add markers ──────────────────────────────────────────
+  let allMarkers = [];
+  let activeFilter = 'all';
+
+  fetch('/reports/map-data')
+    .then(r => r.json())
+    .then(reports => {
+      if (!reports.length) return;
+
+      // Hide the "no reports" message if present
+      const emptyMsg = document.getElementById('map-empty-msg');
+      if (emptyMsg) emptyMsg.style.display = 'none';
+
+      reports.forEach(report => {
+        const marker = L.marker(
+          [report.latitude, report.longitude],
+          { icon: makeIcon(report.priority, report.status) }
+        );
+
+        marker.bindPopup(`
+          <div class="popup-title">${escHtml(report.title)}</div>
+          <div class="popup-meta">
+            ${escHtml(report.category)} · ${escHtml(report.priority)} priority · ${escHtml(report.status)}
+            ${report.location_label ? '<br>' + escHtml(report.location_label) : ''}
+          </div>
+          <a class="popup-link" href="/reports/${report.id}">View details →</a>
+        `);
+
+        marker._reportData = report;
+        allMarkers.push(marker);
+        marker.addTo(map);
+      });
+
+      updateCount();
+
+      // Fit map to all markers
+      if (allMarkers.length) {
+        const group = L.featureGroup(allMarkers);
+        map.fitBounds(group.getBounds().pad(0.15));
+      }
+    })
+    .catch(err => console.error('Failed to load map data:', err));
+
+  // ── Filter logic ───────────────────────────────────────────────────────────
+  document.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      activeFilter = this.dataset.filter;
+      applyFilter();
+    });
+  });
+
+  function applyFilter() {
+    allMarkers.forEach(marker => {
+      const d = marker._reportData;
+      let match;
+      if (activeFilter === 'all') {
+        match = true;
+      } else if (activeFilter === 'Resolved') {
+        match = d.status === 'Resolved';
+      } else {
+        match = d.priority === activeFilter && d.status !== 'Resolved';
+      }
+      if (match) {
+        marker.addTo(map);
+      } else {
+        marker.remove();
+      }
+    });
+    updateCount();
+  }
+
+  function updateCount() {
+    const visible = allMarkers.filter(m => map.hasLayer(m)).length;
+    const el = document.getElementById('visible-count');
+    if (el) el.textContent = visible;
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+})();
+</script>
+{% endblock %}

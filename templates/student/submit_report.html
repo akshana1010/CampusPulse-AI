@@ -1,0 +1,443 @@
+<!-- templates/student/submit_report.html -->
+{% extends "base.html" %}
+{% block title %}Submit a Problem – CampusPulse AI{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}" />
+<style>
+  .location-map-wrap { position: relative; }
+  .map-instruction-banner {
+    background: rgba(99,102,241,0.12);
+    border: 1px dashed var(--clr-primary);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    color: var(--clr-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .map-instruction-banner.pinned {
+    background: rgba(34,197,94,0.1);
+    border-color: var(--clr-success);
+    color: var(--clr-success);
+  }
+  .location-map {
+    height: 280px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--clr-border);
+    border-top: none;
+    margin-bottom: var(--space-sm);
+    cursor: crosshair;
+  }
+  .map-btn-row {
+    display: flex;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+    flex-wrap: wrap;
+  }
+  .btn-map-geo {
+    font-size: 0.8rem;
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
+    color: var(--clr-text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .btn-map-geo:hover {
+    border-color: var(--clr-primary);
+    color: var(--clr-primary);
+  }
+  .btn-map-clear {
+    font-size: 0.8rem;
+    padding: 5px 12px;
+    background: transparent;
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
+    color: var(--clr-text-muted);
+    cursor: pointer;
+  }
+  .location-coords {
+    font-size: 0.78rem;
+    color: var(--clr-text-muted);
+    font-family: monospace;
+    margin-top: 4px;
+  }
+  .location-coords.has-pin { color: var(--clr-success); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container page-container--narrow">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Report a Campus Problem</h1>
+      <p class="page-subtitle">Our AI will analyse your report automatically</p>
+    </div>
+  </div>
+
+  <form id="report-form" method="POST" action="{{ url_for('reports.submit') }}"
+        enctype="multipart/form-data" novalidate>
+
+    <!-- Title -->
+    <div class="form-section">
+      <div class="form-group">
+        <label for="title" class="form-label">Problem Title <span class="required">*</span></label>
+        <input type="text" id="title" name="title" class="form-input"
+               placeholder="Brief title, e.g. 'Broken street light near library'"
+               required maxlength="200" />
+        <span class="form-hint">Keep it short and descriptive (max 200 characters)</span>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="form-section">
+      <div class="form-group">
+        <label for="description" class="form-label">Description <span class="required">*</span></label>
+        <textarea id="description" name="description" class="form-textarea"
+                  placeholder="Describe the problem in detail. When did you notice it? How severe is it? Who is affected?"
+                  required rows="5" maxlength="2000"></textarea>
+        <span class="form-hint" id="desc-char-count">0 / 2000 characters</span>
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="form-section">
+      <div class="form-group">
+        <label for="category" class="form-label">Category <span class="required">*</span></label>
+        <select id="category" name="category" class="form-select" required>
+          <option value="" disabled selected>Select a category…</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+        </select>
+        <span class="form-hint">AI will verify and may re-categorise your report</span>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="form-section">
+      <div class="form-group">
+        <label class="form-label">Location <span class="form-hint-inline">(recommended — helps prioritise your report)</span></label>
+
+        <!-- Instruction banner -->
+        <div class="map-instruction-banner" id="map-banner">
+          <span>📍</span>
+          <span id="map-banner-text">Click anywhere on the map to drop a pin at the problem location</span>
+        </div>
+
+        <!-- Leaflet map -->
+        <div class="location-map-wrap">
+          <div id="location-map" class="location-map" role="application"
+               aria-label="Click to select problem location on map"></div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="map-btn-row">
+          <button type="button" class="btn-map-geo" id="btn-use-location">
+            🎯 Use my current location
+          </button>
+          <button type="button" class="btn-map-clear" id="btn-clear-pin" style="display:none">
+            ✕ Clear pin
+          </button>
+        </div>
+
+        <!-- Hidden coordinate inputs -->
+        <input type="hidden" id="latitude"  name="latitude" />
+        <input type="hidden" id="longitude" name="longitude" />
+
+        <!-- Visible label + coords -->
+        <input type="text" id="location_label" name="location_label" class="form-input"
+               placeholder="Location name (e.g. 'Near Block C Gate')" maxlength="200"
+               style="margin-top: var(--space-xs);" />
+        <p class="location-coords" id="coords-display">No location selected — click the map to add one</p>
+      </div>
+    </div>
+
+    <!-- Image Upload -->
+    <div class="form-section">
+      <div class="form-group">
+        <label for="image" class="form-label">Photo <span class="form-hint-inline">(optional)</span></label>
+        <div class="file-drop-zone" id="file-drop-zone">
+          <input type="file" id="image" name="image" class="file-input"
+                 accept=".jpg,.jpeg,.png,.gif,.webp" />
+          <div class="file-drop-content" id="file-drop-content">
+            <span class="file-icon" aria-hidden="true">📷</span>
+            <p>Drag &amp; drop an image here, or <span class="file-link">browse</span></p>
+            <p class="file-hint">PNG, JPG, WEBP up to 5 MB</p>
+          </div>
+          <div class="file-preview" id="file-preview" style="display:none">
+            <img id="preview-img" src="" alt="Image preview" class="preview-img" />
+            <button type="button" class="remove-file" id="remove-file" aria-label="Remove image">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Notice -->
+    <div class="ai-notice" role="note">
+      <span class="ai-notice-icon" aria-hidden="true">✨</span>
+      <div>
+        <strong>AI Analysis</strong>
+        <p>After submission, our AI will automatically determine the priority level,
+           verify the category, generate a summary, and analyse the sentiment of your report.</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="form-actions">
+      <a href="{{ url_for('reports.dashboard') }}" class="btn btn-outline">Cancel</a>
+      <button type="submit" class="btn btn-primary" id="submit-btn">
+        Submit Report
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ── Leaflet location picker ────────────────────────────────────────────────
+  const mapEl      = document.getElementById("location-map");
+  const latInput   = document.getElementById("latitude");
+  const lngInput   = document.getElementById("longitude");
+  const coordsEl   = document.getElementById("coords-display");
+  const banner     = document.getElementById("map-banner");
+  const bannerText = document.getElementById("map-banner-text");
+  const clearBtn   = document.getElementById("btn-clear-pin");
+  const geoBtn     = document.getElementById("btn-use-location");
+  const labelInput = document.getElementById("location_label");
+
+  if (mapEl && typeof L !== "undefined") {
+    // Default center: Sri Manakula Vinayagar Engineering College (SMVEC), Puducherry
+    let centerLat = 11.9213;
+    let centerLng = 79.6385;
+    let centerZoom = 16;
+
+    if (window.CAMPUS_CONFIG) {
+      if (!isNaN(parseFloat(window.CAMPUS_CONFIG.lat))) centerLat = parseFloat(window.CAMPUS_CONFIG.lat);
+      if (!isNaN(parseFloat(window.CAMPUS_CONFIG.lng))) centerLng = parseFloat(window.CAMPUS_CONFIG.lng);
+      if (!isNaN(parseInt(window.CAMPUS_CONFIG.zoom, 10))) centerZoom = parseInt(window.CAMPUS_CONFIG.zoom, 10);
+    }
+
+    const map = L.map("location-map", {
+      scrollWheelZoom: true,
+      zoomControl: true
+    }).setView([centerLat, centerLng], centerZoom);
+
+    // OpenStreetMap Standard Tile Layer
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Invalidate size in case layout rendered with flex/transitions
+    setTimeout(function () {
+      map.invalidateSize();
+    }, 250);
+
+    // Self-contained SVG pin icon
+    const pinIcon = L.divIcon({
+      className: "custom-map-pin",
+      html: '<div style="width:32px;height:32px;transform:translate(-16px,-32px);"><svg viewBox="0 0 24 24" width="32" height="32" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));"><path fill="#ef4444" stroke="#ffffff" stroke-width="1.5" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+
+    let marker = null;
+
+    function updateCoords(lat, lng) {
+      const fixedLat = lat.toFixed(6);
+      const fixedLng = lng.toFixed(6);
+      latInput.value = fixedLat;
+      lngInput.value = fixedLng;
+      coordsEl.textContent = "📍 Pinned: " + fixedLat + ", " + fixedLng;
+      coordsEl.classList.add("has-pin");
+      banner.classList.add("pinned");
+      bannerText.textContent = "Location pinned (" + fixedLat + ", " + fixedLng + ")! Click elsewhere or drag marker to adjust.";
+      clearBtn.style.display = "inline-block";
+    }
+
+    function setPin(lat, lng, panTo) {
+      const latlng = L.latLng(lat, lng);
+      if (marker) {
+        marker.setLatLng(latlng);
+      } else {
+        marker = L.marker(latlng, { icon: pinIcon, draggable: true }).addTo(map);
+        marker.on("dragend", function () {
+          const pos = marker.getLatLng();
+          updateCoords(pos.lat, pos.lng);
+        });
+      }
+      if (panTo !== false) {
+        map.setView(latlng, Math.max(map.getZoom(), 16));
+      }
+      updateCoords(lat, lng);
+    }
+
+    function clearPin() {
+      if (marker) {
+        map.removeLayer(marker);
+        marker = null;
+      }
+      latInput.value = "";
+      lngInput.value = "";
+      coordsEl.textContent = "No location selected — click the map to add one";
+      coordsEl.classList.remove("has-pin");
+      banner.classList.remove("pinned");
+      bannerText.textContent = "Click anywhere on the map to drop a pin at the problem location";
+      clearBtn.style.display = "none";
+    }
+
+    // Check if initial values exist (e.g. form resubmit or edit)
+    if (latInput.value && lngInput.value) {
+      const initLat = parseFloat(latInput.value);
+      const initLng = parseFloat(lngInput.value);
+      if (!isNaN(initLat) && !isNaN(initLng)) {
+        setPin(initLat, initLng, true);
+      }
+    }
+
+    // Click anywhere on map → drop or move pin
+    map.on("click", function (e) {
+      setPin(e.latlng.lat, e.latlng.lng, true);
+    });
+
+    // Clear pin button
+    clearBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      clearPin();
+    });
+
+    // Use current location button
+    geoBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (!navigator.geolocation) {
+        bannerText.textContent = "Geolocation is not supported by your browser. Please click the map manually.";
+        coordsEl.textContent = "⚠️ Geolocation not supported by browser. Click the map to pin location.";
+        return;
+      }
+
+      geoBtn.textContent = "⏳ Locating…";
+      geoBtn.disabled = true;
+      bannerText.textContent = "Getting your current location from browser…";
+
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setPin(lat, lng, true);
+          geoBtn.textContent = "🎯 Use my current location";
+          geoBtn.disabled = false;
+          if (!labelInput.value) {
+            labelInput.placeholder = "Current Location (or enter custom name)";
+          }
+        },
+        function (err) {
+          geoBtn.textContent = "🎯 Use my current location";
+          geoBtn.disabled = false;
+          let msg = "Could not get your location. Please click the map manually to place a pin.";
+          if (err && err.code === 1) {
+            msg = "Location access denied. Please click on the map manually to place a pin.";
+          } else if (err && err.code === 2) {
+            msg = "Location unavailable. Please click on the map manually to place a pin.";
+          } else if (err && err.code === 3) {
+            msg = "Location request timed out. Please click on the map manually to place a pin.";
+          }
+          bannerText.textContent = msg;
+          coordsEl.textContent = "⚠️ " + msg;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    });
+  }
+
+  // ── Description character counter ─────────────────────────────────────────
+  const descTextarea = document.getElementById("description");
+  const charCount    = document.getElementById("desc-char-count");
+  if (descTextarea && charCount) {
+    descTextarea.addEventListener("input", function () {
+      const len = this.value.length;
+      const max = parseInt(this.getAttribute("maxlength") || 2000, 10);
+      charCount.textContent = len + " / " + max + " characters";
+      charCount.style.color = len > max * 0.9 ? "var(--clr-warning)" : "";
+    });
+  }
+
+  // ── Image drag-and-drop + preview ──────────────────────────────────────────
+  const dropZone   = document.getElementById("file-drop-zone");
+  const fileInput  = document.getElementById("image");
+  const dropContent= document.getElementById("file-drop-content");
+  const filePreview= document.getElementById("file-preview");
+  const previewImg = document.getElementById("preview-img");
+  const removeBtn  = document.getElementById("remove-file");
+
+  if (dropZone && fileInput) {
+    ["dragenter", "dragover"].forEach(function (evt) {
+      dropZone.addEventListener(evt, function (e) {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+    });
+    ["dragleave", "drop"].forEach(function (evt) {
+      dropZone.addEventListener(evt, function (e) {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+      });
+    });
+    dropZone.addEventListener("drop", function (e) {
+      var files = e.dataTransfer.files;
+      if (files.length) { fileInput.files = files; showPreview(files[0]); }
+    });
+    fileInput.addEventListener("change", function () {
+      if (this.files.length) showPreview(this.files[0]);
+    });
+    removeBtn && removeBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      fileInput.value = "";
+      filePreview.style.display = "none";
+      dropContent.style.display = "";
+    });
+    function showPreview(file) {
+      if (!file.type.startsWith("image/")) return;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        previewImg.src = e.target.result;
+        filePreview.style.display = "block";
+        dropContent.style.display = "none";
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  // ── Form submit state ──────────────────────────────────────────────────────
+  var form      = document.getElementById("report-form");
+  var submitBtn = document.getElementById("submit-btn");
+  if (form && submitBtn) {
+    form.addEventListener("submit", function (e) {
+      // Validate title and description
+      const title = document.getElementById("title");
+      const desc = document.getElementById("description");
+      if (!title.value.trim() || !desc.value.trim()) {
+        return; // Allow browser validation to show
+      }
+      setTimeout(function () {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting…";
+      }, 50);
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,172 @@
+<!-- templates/auth/register.html -->
+{% extends "base.html" %}
+{% block title %}Create Account – CampusPulse AI{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card auth-card--wide">
+
+    <!-- Header -->
+    <div class="auth-header">
+      <span class="auth-logo" aria-hidden="true">🎓</span>
+      <h1 class="auth-title">Create Account</h1>
+      <p class="auth-subtitle">Join CampusPulse AI and help improve your campus</p>
+    </div>
+
+    <!-- Register Form -->
+    <form class="auth-form" id="register-form" method="POST"
+          action="{{ url_for('auth.register') }}" novalidate>
+
+      {# CSRF token – only rendered when CSRF is enabled #}
+      {% if csrf_token is defined and csrf_token() %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      {% endif %}
+
+      <!-- Row 1: Name + Email -->
+      <div class="form-grid form-grid--2col">
+        <div class="form-group">
+          <label for="name" class="form-label">Full Name <span class="required">*</span></label>
+          <input type="text" id="name" name="name" class="form-input"
+                 placeholder="Jane Smith" required autocomplete="name"
+                 value="{{ form.name if form else '' }}" autofocus />
+        </div>
+
+        <div class="form-group">
+          <label for="email" class="form-label">Email Address <span class="required">*</span></label>
+          <input type="email" id="email" name="email" class="form-input"
+                 placeholder="jane@university.edu" required autocomplete="email"
+                 value="{{ form.email if form else '' }}" />
+        </div>
+      </div>
+
+      <!-- Row 2: Student ID + Department -->
+      <div class="form-grid form-grid--2col">
+        <div class="form-group">
+          <label for="student_id" class="form-label">Student ID <span style="color:var(--clr-text-faint)">(optional)</span></label>
+          <input type="text" id="student_id" name="student_id" class="form-input"
+                 placeholder="e.g. 2021CS001" autocomplete="off"
+                 value="{{ form.student_id if form else '' }}" />
+        </div>
+
+        <div class="form-group">
+          <label for="department" class="form-label">Department <span style="color:var(--clr-text-faint)">(optional)</span></label>
+          <input type="text" id="department" name="department" class="form-input"
+                 placeholder="e.g. Computer Science"
+                 value="{{ form.department if form else '' }}" />
+        </div>
+      </div>
+
+      <!-- Row 3: Year of Study (solo) -->
+      <div class="form-group">
+        <label for="year" class="form-label">Year of Study <span style="color:var(--clr-text-faint)">(optional)</span></label>
+        <select id="year" name="year" class="form-select">
+          <option value="">— Select year —</option>
+          {% for y in range(1, 6) %}
+          <option value="{{ y }}" {% if form and form.year|string == y|string %}selected{% endif %}>
+            {{ y }}{% if y == 1 %}st{% elif y == 2 %}nd{% elif y == 3 %}rd{% else %}th{% endif %} Year
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Row 4: Passwords -->
+      <div class="form-grid form-grid--2col">
+        <div class="form-group">
+          <label for="password" class="form-label">Password <span class="required">*</span></label>
+          <div class="input-with-toggle">
+            <input type="password" id="password" name="password" class="form-input"
+                   placeholder="At least 8 characters" required
+                   minlength="8" autocomplete="new-password"
+                   oninput="updateStrength(this.value)" />
+            <button type="button" class="toggle-password" id="toggle-pwd"
+                    aria-label="Show password" title="Show / hide password">👁</button>
+          </div>
+          <!-- Strength bar -->
+          <div class="pwd-strength-bar" aria-hidden="true">
+            <div class="pwd-strength-fill" id="pwd-strength-fill"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="confirm_password" class="form-label">Confirm Password <span class="required">*</span></label>
+          <div class="input-with-toggle">
+            <input type="password" id="confirm_password" name="confirm_password" class="form-input"
+                   placeholder="Repeat password" required autocomplete="new-password" />
+            <button type="button" class="toggle-password" id="toggle-confirm-pwd"
+                    aria-label="Show confirm password" title="Show / hide password">👁</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn--full" id="register-btn">
+        Create My Account →
+      </button>
+    </form>
+
+    <p class="auth-footer-text">
+      Already have an account?
+      <a href="{{ url_for('auth.login') }}" class="auth-link">Sign in →</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // ── Password visibility toggles ──────────────────────────────────────────────
+  function setupToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const inp = document.getElementById(inputId);
+    if (!btn || !inp) return;
+    btn.addEventListener('click', () => {
+      const isText = inp.type === 'text';
+      inp.type = isText ? 'password' : 'text';
+      btn.textContent = isText ? '👁' : '🙈';
+    });
+  }
+  setupToggle('toggle-pwd',         'password');
+  setupToggle('toggle-confirm-pwd', 'confirm_password');
+
+  // ── Password strength indicator ──────────────────────────────────────────────
+  function updateStrength(val) {
+    const bar = document.getElementById('pwd-strength-fill');
+    if (!bar) return;
+    let score = 0;
+    if (val.length >= 8)  score++;
+    if (val.length >= 12) score++;
+    if (/[A-Z]/.test(val)) score++;
+    if (/[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    const pct   = (score / 5) * 100;
+    const color = score <= 1 ? '#ef4444' : score <= 3 ? '#f59e0b' : '#22c55e';
+    bar.style.width    = pct + '%';
+    bar.style.background = color;
+  }
+
+  // ── Client-side confirm-password match ───────────────────────────────────────
+  const form    = document.getElementById('register-form');
+  const pwd     = document.getElementById('password');
+  const confirm = document.getElementById('confirm_password');
+  if (form && pwd && confirm) {
+    form.addEventListener('submit', (e) => {
+      confirm.setCustomValidity('');
+      if (pwd.value.length < 8) {
+        e.preventDefault();
+        pwd.setCustomValidity('Password must be at least 8 characters.');
+        pwd.reportValidity();
+        return;
+      }
+      if (pwd.value !== confirm.value) {
+        e.preventDefault();
+        confirm.setCustomValidity('Passwords do not match.');
+        confirm.reportValidity();
+      }
+    });
+    confirm.addEventListener('input', () => confirm.setCustomValidity(''));
+    pwd.addEventListener('input', () => pwd.setCustomValidity(''));
+  }
+</script>
+{% endblock %}

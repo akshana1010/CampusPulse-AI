@@ -1,0 +1,108 @@
+<!-- templates/auth/admin_login.html -->
+{% extends "base.html" %}
+{% block title %}Admin Portal – CampusPulse AI{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+
+    <!-- Header -->
+    <div class="auth-header">
+      <span class="auth-logo" aria-hidden="true">🛡️</span>
+      <h1 class="auth-title">Admin <span class="brand-accent">Portal</span></h1>
+      <p class="auth-subtitle">Authorized campus administration sign in</p>
+    </div>
+
+    <!-- Login Form -->
+    <form class="auth-form" id="admin-login-form" method="POST"
+          action="{{ url_for('auth.admin_login') }}" novalidate>
+
+      {# CSRF token – rendered when CSRF is enabled #}
+      {% if csrf_token is defined and csrf_token() %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      {% endif %}
+
+      <!-- Email / Admin ID -->
+      <div class="form-group">
+        <label for="admin-email" class="form-label">Administrator ID or Email</label>
+        <input
+          type="text"
+          id="admin-email"
+          name="email"
+          class="form-input"
+          placeholder="admin or admin@campuspulse.ai"
+          value="{{ email or '' }}"
+          required
+          autocomplete="username"
+          autofocus
+        />
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label for="admin-password" class="form-label">Admin Password</label>
+        <div class="input-with-toggle">
+          <input
+            type="password"
+            id="admin-password"
+            name="password"
+            class="form-input"
+            placeholder="Your admin password"
+            required
+            autocomplete="current-password"
+          />
+          <button type="button" class="toggle-password" id="toggle-admin-pwd"
+                  aria-label="Toggle password visibility" title="Show / hide password">👁</button>
+        </div>
+      </div>
+
+      <!-- Remember me -->
+      <div class="form-row form-row--space-between">
+        <label class="checkbox-label" for="remember-admin">
+          <input type="checkbox" name="remember" id="remember-admin" />
+          <span>Keep me signed in</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn--full" id="admin-login-btn">
+        Sign In to Admin Portal →
+      </button>
+    </form>
+
+    <p class="auth-footer-text" style="margin-top: var(--space-xl);">
+      <a href="{{ url_for('auth.login') }}" class="auth-link">← Back to Student Sign In</a>
+    </p>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Toggle password visibility
+  const toggle = document.getElementById('toggle-admin-pwd');
+  const pwdInput = document.getElementById('admin-password');
+  if (toggle && pwdInput) {
+    toggle.addEventListener('click', () => {
+      const isText = pwdInput.type === 'text';
+      pwdInput.type = isText ? 'password' : 'text';
+      toggle.textContent = isText ? '👁' : '🙈';
+      toggle.setAttribute('aria-label', isText ? 'Show password' : 'Hide password');
+    });
+  }
+
+  // Client-side empty-field guard
+  const form = document.getElementById('admin-login-form');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      const email = document.getElementById('admin-email').value.trim();
+      const pwd = document.getElementById('admin-password').value;
+      if (!email || !pwd) {
+        e.preventDefault();
+        alert('Please fill in both your administrator email and password.');
+      }
+    });
+  }
+</script>
+{% endblock %}

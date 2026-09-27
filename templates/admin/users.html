@@ -1,0 +1,138 @@
+<!-- templates/admin/users.html -->
+{% extends "base.html" %}
+{% block title %}Users – CampusPulse AI Admin{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">👥 User Management</h1>
+      <p class="page-subtitle">{{ users.total }} registered {{ 'user' if users.total == 1 else 'users' }}</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline">← Dashboard</a>
+  </div>
+
+  <!-- Users Table -->
+  <div class="card">
+    <div class="table-wrapper">
+      <table class="data-table" id="users-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Student ID</th>
+            <th>Department</th>
+            <th>Role</th>
+            <th>Joined</th>
+            <th>Active</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users.items %}
+          <tr id="user-row-{{ user.id }}">
+            <td class="text-muted">{{ user.id }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:0.5rem;">
+                <span class="avatar-initials" style="width:28px;height:28px;font-size:0.7rem;flex-shrink:0;">
+                  {{ user.name[:2].upper() }}
+                </span>
+                <strong>{{ user.name }}</strong>
+              </div>
+            </td>
+            <td class="text-muted">{{ user.email }}</td>
+            <td class="text-muted">{{ user.student_id or '—' }}</td>
+            <td class="text-muted">{{ user.department or '—' }}</td>
+            <td>
+              <span class="badge badge--{{ 'purple' if user.role == 'admin' else 'blue' }}">
+                {{ user.role }}
+              </span>
+            </td>
+            <td class="text-muted" style="font-size:0.82rem;">
+              {{ user.created_at.strftime('%b %d, %Y') if user.created_at else '—' }}
+            </td>
+            <td>
+              <span class="badge badge--{{ 'green' if user.is_active else 'red' }}">
+                {{ 'Active' if user.is_active else 'Inactive' }}
+              </span>
+            </td>
+            <td>
+              {% if user.id != current_user.id %}
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                {% if user.role == 'student' %}
+                <button class="btn btn-outline btn-xs"
+                        onclick="changeRole({{ user.id }}, 'admin')"
+                        title="Promote to admin">
+                  ↑ Admin
+                </button>
+                {% else %}
+                <button class="btn btn-outline btn-xs"
+                        onclick="changeRole({{ user.id }}, 'student')"
+                        title="Demote to student">
+                  ↓ Student
+                </button>
+                {% endif %}
+              </div>
+              {% else %}
+              <span class="text-muted" style="font-size:0.8rem;">(you)</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="text-center text-muted" style="padding:2rem;">
+              No users found.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  {% if users.pages > 1 %}
+  <div class="pagination" style="margin-top:1.5rem;">
+    {% if users.has_prev %}
+    <a href="{{ url_for('admin.users', page=users.prev_num) }}" class="btn btn-outline btn-sm">← Prev</a>
+    {% endif %}
+    <span class="text-muted" style="font-size:0.875rem;">
+      Page {{ users.page }} of {{ users.pages }}
+    </span>
+    {% if users.has_next %}
+    <a href="{{ url_for('admin.users', page=users.next_num) }}" class="btn btn-outline btn-sm">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  async function changeRole(userId, newRole) {
+    const label = newRole === 'admin' ? 'promote this user to admin' : 'demote this user to student';
+    if (!confirm(`Are you sure you want to ${label}?`)) return;
+
+    try {
+      const resp = await fetch(`/admin/users/${userId}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        // Reload to reflect change
+        window.location.reload();
+      } else {
+        alert(data.error || 'Failed to update role. Please try again.');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    }
+  }
+</script>
+{% endblock %}

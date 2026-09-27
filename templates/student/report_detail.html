@@ -1,0 +1,209 @@
+<!-- templates/student/report_detail.html -->
+{% extends "base.html" %}
+{% block title %}Report #{{ report.id }} – CampusPulse AI{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <a href="{{ url_for('reports.dashboard') }}" class="back-link">← Back to Dashboard</a>
+      <h1 class="page-title">{{ report.title }}</h1>
+      <p class="page-subtitle">Submitted on {{ report.created_at.strftime('%d %B %Y at %I:%M %p') if report.created_at else '—' }}</p>
+    </div>
+    <div class="report-header-badges">
+      <span class="badge badge--category">{{ report.category }}</span>
+      <span class="badge badge--priority badge--{{ report.priority | lower }}">{{ report.priority }}</span>
+      <span class="badge badge--status badge--status-{{ report.status | lower | replace(' ', '-') }}">{{ report.status }}</span>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+
+    <!-- Left column: Report info + AI -->
+    <div class="detail-main">
+
+      <!-- Description -->
+      <section class="detail-section" aria-label="Problem description">
+        <h2 class="detail-section-title">Description</h2>
+        <p class="detail-description">{{ report.description }}</p>
+      </section>
+
+      <!-- AI Analysis -->
+      {% if report.ai_summary %}
+      <section class="detail-section ai-panel" aria-label="AI analysis">
+        <h2 class="detail-section-title">
+          <span class="ai-chip" aria-hidden="true">✨</span> AI Analysis
+        </h2>
+        <div class="ai-panel-grid">
+          <div class="ai-field">
+            <span class="ai-field-label">Summary</span>
+            <p class="ai-field-value">{{ report.ai_summary }}</p>
+          </div>
+          <div class="ai-field">
+            <span class="ai-field-label">Predicted Category</span>
+            <span class="ai-field-value badge badge--category">{{ report.ai_category or '—' }}</span>
+          </div>
+          <div class="ai-field">
+            <span class="ai-field-label">Sentiment</span>
+            <span class="ai-field-value sentiment-chip sentiment-chip--{{ report.ai_sentiment or 'neutral' }}">
+              {{ report.ai_sentiment or '—' }}
+            </span>
+          </div>
+          {% if report.ai_confidence is not none %}
+          <div class="ai-field">
+            <span class="ai-field-label">Confidence</span>
+            <div class="confidence-bar" role="progressbar"
+                 aria-valuenow="{{ (report.ai_confidence * 100) | int }}"
+                 aria-valuemin="0" aria-valuemax="100">
+              <div class="confidence-fill"
+                   style="width: {{ (report.ai_confidence * 100) | int }}%"></div>
+              <span class="confidence-label">{{ (report.ai_confidence * 100) | int }}%</span>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Photo -->
+      {% if report.image_path %}
+      <section class="detail-section" aria-label="Uploaded photo">
+        <h2 class="detail-section-title">Photo</h2>
+        <img src="{{ url_for('static', filename=report.image_path) }}"
+             alt="Photo for report: {{ report.title }}"
+             class="report-image" />
+      </section>
+      {% endif %}
+
+      <!-- Admin Notes (visible to report author) -->
+      {% if report.admin_notes %}
+      <section class="detail-section admin-notes-section" aria-label="Admin response">
+        <h2 class="detail-section-title">📝 Admin Response</h2>
+        <p class="admin-notes-text">{{ report.admin_notes }}</p>
+      </section>
+      {% endif %}
+
+    </div>
+
+    <!-- Right column: Map + Timeline + Votes -->
+    <div class="detail-sidebar">
+
+      <!-- Location map -->
+      {% if report.latitude and report.longitude %}
+      <section class="detail-section" aria-label="Problem location">
+        <h2 class="detail-section-title">📍 Location</h2>
+        <p class="location-label-text">{{ report.location_label or 'Campus location' }}</p>
+        <div id="detail-map" class="detail-map" role="application"
+             data-lat="{{ report.latitude }}" data-lng="{{ report.longitude }}"
+             aria-label="Map showing problem location"></div>
+      </section>
+      {% endif %}
+
+      <!-- Community Votes -->
+      <section class="detail-section votes-section" aria-label="Community votes">
+        <h2 class="detail-section-title">Community Validation</h2>
+        <p class="votes-desc">Do you also see this problem?</p>
+        <div class="vote-buttons">
+          <button class="vote-btn vote-btn--up {% if user_vote and user_vote.vote_type == 'upvote' %}active{% endif %}"
+                  id="upvote-btn" data-report="{{ report.id }}" data-type="upvote"
+                  aria-label="Upvote this report" aria-pressed="{{ 'true' if user_vote and user_vote.vote_type == 'upvote' else 'false' }}">
+            👍 <span id="upvote-count">{{ report.upvote_count }}</span>
+          </button>
+          <button class="vote-btn vote-btn--down {% if user_vote and user_vote.vote_type == 'downvote' %}active{% endif %}"
+                  id="downvote-btn" data-report="{{ report.id }}" data-type="downvote"
+                  aria-label="Downvote this report" aria-pressed="{{ 'true' if user_vote and user_vote.vote_type == 'downvote' else 'false' }}">
+            👎 <span id="downvote-count">{{ report.downvote_count }}</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Status Timeline -->
+      <section class="detail-section" aria-label="Status history">
+        <h2 class="detail-section-title">Status Timeline</h2>
+        <ol class="timeline" role="list">
+          <!-- Initial creation always shown -->
+          <li class="timeline-item timeline-item--done">
+            <span class="timeline-dot" aria-hidden="true"></span>
+            <div class="timeline-content">
+              <span class="timeline-status">Reported</span>
+              <span class="timeline-meta">
+                {{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}
+              </span>
+            </div>
+          </li>
+          {% for entry in history %}
+          <li class="timeline-item timeline-item--done">
+            <span class="timeline-dot" aria-hidden="true"></span>
+            <div class="timeline-content">
+              <span class="timeline-status">{{ entry.new_status }}</span>
+              <span class="timeline-meta">
+                {{ entry.changed_at.strftime('%d %b %Y') if entry.changed_at else '—' }}
+                · by {{ entry.changed_by_user.name if entry.changed_by_user else 'Admin' }}
+              </span>
+              {% if entry.note %}
+              <p class="timeline-note">{{ entry.note }}</p>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}" />
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script>
+  // ── Detail page mini-map ──────────────────────────────────────────────────
+  const mapEl = document.getElementById('detail-map');
+  if (mapEl && typeof L !== 'undefined') {
+    const lat = parseFloat(mapEl.dataset.lat);
+    const lng = parseFloat(mapEl.dataset.lng);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      const map = L.map('detail-map', { zoomControl: true, scrollWheelZoom: false })
+                   .setView([lat, lng], 17);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      const pinIcon = L.divIcon({
+        className: 'custom-map-pin',
+        html: '<div style="width:32px;height:32px;transform:translate(-16px,-32px);"><svg viewBox="0 0 24 24" width="32" height="32" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));"><path fill="#ef4444" stroke="#ffffff" stroke-width="1.5" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      });
+
+      L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+      setTimeout(function () { map.invalidateSize(); }, 200);
+    }
+  }
+
+  // ── Vote buttons ──────────────────────────────────────────────────────────
+  async function castVote(reportId, voteType) {
+    const res = await fetch(`/reports/${reportId}/vote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vote_type: voteType }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      document.getElementById('upvote-count').textContent   = data.upvotes;
+      document.getElementById('downvote-count').textContent = data.downvotes;
+    }
+  }
+
+  document.getElementById('upvote-btn')?.addEventListener('click', () =>
+    castVote({{ report.id }}, 'upvote'));
+  document.getElementById('downvote-btn')?.addEventListener('click', () =>
+    castVote({{ report.id }}, 'downvote'));
+</script>
+{% endblock %}
