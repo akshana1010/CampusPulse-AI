@@ -12,6 +12,7 @@ notifications  – In-app notifications sent to students
 admin_actions  – Log of every admin-initiated action
 """
 
+import json
 from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -111,6 +112,8 @@ class Report(db.Model):
 
     # User-selected fields
     category = db.Column(db.String(40), nullable=False)
+    is_anonymous = db.Column(db.Boolean, default=False, nullable=False)
+    is_emergency = db.Column(db.Boolean, default=False, nullable=False)
 
     # AI-analysed fields
     ai_category = db.Column(db.String(40), nullable=True)
@@ -149,6 +152,15 @@ class Report(db.Model):
     notifications = db.relationship("Notification", back_populates="report", lazy="dynamic", cascade="all, delete-orphan")
     admin_actions = db.relationship("AdminAction", back_populates="report", lazy="dynamic", cascade="all, delete-orphan")
 
+    # ── Display / Privacy helpers ──────────────────────────────────────────────
+
+    @property
+    def display_author(self) -> str:
+        """Return 'Anonymous Student' if anonymous, otherwise author name."""
+        if self.is_anonymous:
+            return "Anonymous Student"
+        return self.author.name if self.author else "Student"
+
     # ── Vote helpers ───────────────────────────────────────────────────────────
 
     @property
@@ -161,7 +173,8 @@ class Report(db.Model):
 
     # ── Serialization ──────────────────────────────────────────────────────────
 
-    def to_dict(self, include_ai=True) -> dict:
+    def to_dict(self, include_ai=True, viewer_is_author=False) -> dict:
+        author_name = "Anonymous Student" if (self.is_anonymous and not viewer_is_author) else (self.author.name if self.author else None)
         data = {
             "id": self.id,
             "title": self.title,
@@ -169,13 +182,15 @@ class Report(db.Model):
             "category": self.category,
             "priority": self.priority,
             "status": self.status,
+            "is_anonymous": self.is_anonymous,
+            "is_emergency": self.is_emergency,
             "latitude": self.latitude,
             "longitude": self.longitude,
             "location_label": self.location_label,
             "image_path": self.image_path,
             "upvotes": self.upvote_count,
             "downvotes": self.downvote_count,
-            "author": self.author.name if self.author else None,
+            "author": author_name,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -185,24 +200,41 @@ class Report(db.Model):
                 "ai_summary": self.ai_summary,
                 "ai_sentiment": self.ai_sentiment,
                 "ai_confidence": self.ai_confidence,
+                "ai_suggested_solution": self.ai_suggested_solution,
             })
         return data
+
+    @property
+    def ai_suggested_solution(self) -> str:
+        """Derive or return the AI suggested practical solution for the report."""
+        if self.ai_raw_response:
+            try:
+                data = json.loads(self.ai_raw_response)
+                if isinstance(data, dict) and data.get("suggested_solution"):
+                    return str(data["suggested_solution"]).strip()
+            except Exception:
+                pass
+        from app.services.ai_service import get_fallback_solution
+        cat = self.ai_category or self.category or "Other"
+        return get_fallback_solution(cat, self.title or "", self.description or "")
 
     def to_map_dict(self) -> dict:
         """Minimal payload for the Leaflet map endpoint."""
         return {
             "id": self.id,
             "title": self.title,
+            "description": (self.description[:180] + "...") if self.description and len(self.description) > 180 else (self.description or ""),
             "category": self.category,
             "priority": self.priority,
             "status": self.status,
+            "is_emergency": self.is_emergency,
             "latitude": self.latitude,
             "longitude": self.longitude,
             "location_label": self.location_label,
         }
 
     def __repr__(self):
-        return f"<Report #{self.id} [{self.status}] '{self.title[:40]}'>"
+        return f"<Report #{self.id} [{'EMERGENCY ' if self.is_emergency else ''}{self.status}] '{self.title[:40]}'>"
 
 
 # ── StatusHistory ──────────────────────────────────────────────────────────────

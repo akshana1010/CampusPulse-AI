@@ -11,6 +11,20 @@
       <p class="page-subtitle">Submitted on {{ report.created_at.strftime('%d %B %Y at %I:%M %p') if report.created_at else '—' }}</p>
     </div>
     <div class="report-header-badges">
+      {% if report.is_emergency %}
+      <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.45); font-weight: 700; animation: pulse 2s infinite;">
+        🚨 Emergency
+      </span>
+      {% endif %}
+      {% if report.is_anonymous %}
+      <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35);">
+        🔒 Anonymous Report
+      </span>
+      {% else %}
+      <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35);">
+        👤 Identified Report
+      </span>
+      {% endif %}
       <span class="badge badge--category">{{ report.category }}</span>
       <span class="badge badge--priority badge--{{ report.priority | lower }}">{{ report.priority }}</span>
       <span class="badge badge--status badge--status-{{ report.status | lower | replace(' ', '-') }}">{{ report.status }}</span>
@@ -21,6 +35,16 @@
 
     <!-- Left column: Report info + AI -->
     <div class="detail-main">
+
+      {% if report.is_emergency %}
+      <div style="margin-bottom: var(--space-md); padding: 12px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: var(--radius-md); display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 1.3rem;">🚨</span>
+        <div>
+          <strong style="color: #ef4444; font-size: 0.92rem;">Flagged as Campus Emergency / Safety Issue</strong>
+          <p style="margin: 2px 0 0 0; font-size: 0.82rem; color: var(--clr-text-muted);">This problem has been prioritized for immediate campus administrator safety review.</p>
+        </div>
+      </div>
+      {% endif %}
 
       <!-- Description -->
       <section class="detail-section" aria-label="Problem description">
@@ -56,9 +80,18 @@
                  aria-valuenow="{{ (report.ai_confidence * 100) | int }}"
                  aria-valuemin="0" aria-valuemax="100">
               <div class="confidence-fill"
-                   style="width: {{ (report.ai_confidence * 100) | int }}%"></div>
+                   data-confidence="{{ (report.ai_confidence * 100) | int }}"></div>
               <span class="confidence-label">{{ (report.ai_confidence * 100) | int }}%</span>
             </div>
+          </div>
+          {% endif %}
+          {% if report.ai_suggested_solution %}
+          <div class="ai-field ai-field--full" style="grid-column: 1 / -1; margin-top: var(--space-xs); padding: 12px 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-md);">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <span style="font-size: 1.05rem;">🤖</span>
+              <strong style="font-size: 0.88rem; color: var(--clr-primary); font-family: var(--font-display);">AI Suggested Solution</strong>
+            </div>
+            <p class="ai-field-value" style="margin: 0; font-size: 0.88rem; color: var(--clr-text); line-height: 1.5;">{{ report.ai_suggested_solution }}</p>
           </div>
           {% endif %}
         </div>
@@ -99,21 +132,37 @@
       </section>
       {% endif %}
 
-      <!-- Community Votes -->
-      <section class="detail-section votes-section" aria-label="Community votes">
-        <h2 class="detail-section-title">Community Validation</h2>
-        <p class="votes-desc">Do you also see this problem?</p>
-        <div class="vote-buttons">
-          <button class="vote-btn vote-btn--up {% if user_vote and user_vote.vote_type == 'upvote' %}active{% endif %}"
-                  id="upvote-btn" data-report="{{ report.id }}" data-type="upvote"
-                  aria-label="Upvote this report" aria-pressed="{{ 'true' if user_vote and user_vote.vote_type == 'upvote' else 'false' }}">
-            👍 <span id="upvote-count">{{ report.upvote_count }}</span>
-          </button>
-          <button class="vote-btn vote-btn--down {% if user_vote and user_vote.vote_type == 'downvote' %}active{% endif %}"
-                  id="downvote-btn" data-report="{{ report.id }}" data-type="downvote"
-                  aria-label="Downvote this report" aria-pressed="{{ 'true' if user_vote and user_vote.vote_type == 'downvote' else 'false' }}">
-            👎 <span id="downvote-count">{{ report.downvote_count }}</span>
-          </button>
+      <!-- Student Support / Upvoting -->
+      <section class="detail-section votes-section" aria-label="Student problem support">
+        <h2 class="detail-section-title">👥 Student Support</h2>
+        <p class="votes-desc" style="font-size:0.84rem; color:var(--clr-text-muted); margin-bottom:12px; line-height:1.4;">
+          Are you also affected by this issue? Upvoting shows college administration that multiple students are facing this problem.
+        </p>
+
+        <!-- Upvote Support Button -->
+        <button type="button" class="btn {% if user_vote and user_vote.vote_type == 'upvote' %}btn-primary{% else %}btn-outline{% endif %}"
+                id="upvote-btn" data-report="{{ report.id }}" data-type="upvote"
+                aria-pressed="{{ 'true' if user_vote and user_vote.vote_type == 'upvote' else 'false' }}"
+                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:600; padding:10px 16px; border-radius:var(--radius-md); font-size:0.95rem; cursor:pointer; transition:all var(--transition-fast);">
+          <span>👍</span>
+          <span id="support-btn-label">{% if user_vote and user_vote.vote_type == 'upvote' %}Supported{% else %}Support This Problem{% endif %}</span>
+          <span class="badge" id="upvote-count" style="background:rgba(255,255,255,0.2); color:currentColor; padding:2px 8px; border-radius:var(--radius-full); font-size:0.82rem;">
+            {{ report.upvote_count }}
+          </span>
+        </button>
+
+        <!-- Support Summary Indicator -->
+        <div id="support-indicator-box" style="margin-top:10px; padding:8px 12px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); border-radius:var(--radius-md); font-size:0.82rem; color:var(--clr-primary); display:flex; align-items:center; gap:6px;">
+          <span>👍</span>
+          <span id="support-indicator-text">
+            {% if report.upvote_count == 1 %}
+              1 student supports this problem
+            {% elif report.upvote_count > 1 %}
+              {{ report.upvote_count }} students support this problem
+            {% else %}
+              No student support yet — be the first to support this problem!
+            {% endif %}
+          </span>
         </div>
       </section>
 
@@ -187,23 +236,62 @@
     }
   }
 
-  // ── Vote buttons ──────────────────────────────────────────────────────────
-  async function castVote(reportId, voteType) {
-    const res = await fetch(`/reports/${reportId}/vote`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vote_type: voteType }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      document.getElementById('upvote-count').textContent   = data.upvotes;
-      document.getElementById('downvote-count').textContent = data.downvotes;
+  document.querySelectorAll('.confidence-fill[data-confidence]').forEach(el => {
+    el.style.width = el.getAttribute('data-confidence') + '%';
+  });
+
+  // ── Student Support / Upvote Handling ─────────────────────────────────────
+  const reportId = parseInt("{{ report.id }}", 10);
+  const upvoteBtn = document.getElementById('upvote-btn');
+  const supportBtnLabel = document.getElementById('support-btn-label');
+  const upvoteCount = document.getElementById('upvote-count');
+  const supportIndicatorText = document.getElementById('support-indicator-text');
+
+  async function toggleSupport(id) {
+    if (!upvoteBtn) return;
+    upvoteBtn.disabled = true;
+    try {
+      const res = await fetch(`/reports/${id}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vote_type: 'upvote' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const count = data.upvotes;
+        const isUpvoted = data.has_upvoted;
+
+        if (upvoteCount) upvoteCount.textContent = count;
+        if (supportBtnLabel) {
+          supportBtnLabel.textContent = isUpvoted ? 'Supported' : 'Support This Problem';
+        }
+        if (isUpvoted) {
+          upvoteBtn.classList.remove('btn-outline');
+          upvoteBtn.classList.add('btn-primary');
+          upvoteBtn.setAttribute('aria-pressed', 'true');
+        } else {
+          upvoteBtn.classList.remove('btn-primary');
+          upvoteBtn.classList.add('btn-outline');
+          upvoteBtn.setAttribute('aria-pressed', 'false');
+        }
+
+        if (supportIndicatorText) {
+          if (count === 1) {
+            supportIndicatorText.textContent = '1 student supports this problem';
+          } else if (count > 1) {
+            supportIndicatorText.textContent = `${count} students support this problem`;
+          } else {
+            supportIndicatorText.textContent = 'No student support yet — be the first to support this problem!';
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Support action error:', e);
+    } finally {
+      upvoteBtn.disabled = false;
     }
   }
 
-  document.getElementById('upvote-btn')?.addEventListener('click', () =>
-    castVote({{ report.id }}, 'upvote'));
-  document.getElementById('downvote-btn')?.addEventListener('click', () =>
-    castVote({{ report.id }}, 'downvote'));
+  upvoteBtn?.addEventListener('click', () => toggleSupport(reportId));
 </script>
 {% endblock %}

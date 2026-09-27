@@ -20,10 +20,10 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}"
-      data-campus-lat="{{ config.get('CAMPUS_LAT',  28.6139) }}"
-      data-campus-lng="{{ config.get('CAMPUS_LNG',  77.2090) }}"
+      data-campus-lat="{{ config.get('CAMPUS_LAT',  11.91411) }}"
+      data-campus-lng="{{ config.get('CAMPUS_LNG',  79.63558) }}"
       data-campus-zoom="{{ config.get('CAMPUS_ZOOM', 16) }}"
-      data-campus-name="{{ config.get('CAMPUS_NAME', 'My University') | e }}">
+      data-campus-name="{{ config.get('CAMPUS_NAME', 'Sri Manakula Vinayagar Engineering College (SMVEC)') | e }}">
 
   <!-- ── Navigation ──────────────────────────────────────────────────────── -->
   {% if current_user.is_authenticated %}
@@ -61,7 +61,7 @@
         {% if current_user.is_admin %}
         <li>
           <a href="{{ url_for('admin.dashboard') }}"
-             class="nav-link {% if 'admin' in request.endpoint %}active{% endif %}">
+             class="nav-link {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}">
             Admin Panel
           </a>
         </li>
@@ -148,8 +148,8 @@
       var lng = parseFloat(d.campusLng);
       var zoom = parseInt(d.campusZoom, 10);
       window.CAMPUS_CONFIG = {
-        lat:  !isNaN(lat) ? lat : 11.9213,
-        lng:  !isNaN(lng) ? lng : 79.6385,
+        lat:  !isNaN(lat) ? lat : 11.91411,
+        lng:  !isNaN(lng) ? lng : 79.63558,
         zoom: !isNaN(zoom) ? zoom : 16,
         name: d.campusName || 'Sri Manakula Vinayagar Engineering College (SMVEC)'
       };

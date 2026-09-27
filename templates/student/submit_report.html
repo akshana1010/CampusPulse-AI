@@ -22,7 +22,7 @@
     color: var(--clr-success);
   }
   .location-map {
-    height: 280px;
+    height: 300px;
     border-radius: 0 0 var(--radius-md) var(--radius-md);
     overflow: hidden;
     border: 1px solid var(--clr-border);
@@ -66,6 +66,86 @@
     margin-top: 4px;
   }
   .location-coords.has-pin { color: var(--clr-success); }
+  .building-select-wrap {
+    margin-bottom: var(--space-sm);
+  }
+  /* Duplicate Warning Box */
+  .duplicate-warning-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(239, 68, 68, 0.1) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.3s ease-out;
+  }
+  .duplicate-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+  .duplicate-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .duplicate-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fbbf24;
+    margin: 0 0 4px 0;
+    font-family: var(--font-display);
+  }
+  .duplicate-subtitle {
+    font-size: 0.85rem;
+    color: var(--clr-text-muted);
+    margin: 0;
+  }
+  .duplicate-card {
+    background: var(--clr-bg-card);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+  .duplicate-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    margin-bottom: 8px;
+  }
+  .duplicate-card-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--clr-text);
+  }
+  .duplicate-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    font-size: 0.82rem;
+    color: var(--clr-text-muted);
+  }
+  .duplicate-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .duplicate-similarity-badge {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+  }
+  .duplicate-actions {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
 </style>
 {% endblock %}
 
@@ -80,6 +160,7 @@
 
   <form id="report-form" method="POST" action="{{ url_for('reports.submit') }}"
         enctype="multipart/form-data" novalidate>
+    <input type="hidden" id="confirm_duplicate" name="confirm_duplicate" value="{{ '1' if duplicate_warning else '0' }}" />
 
     <!-- Title -->
     <div class="form-section">
@@ -87,6 +168,7 @@
         <label for="title" class="form-label">Problem Title <span class="required">*</span></label>
         <input type="text" id="title" name="title" class="form-input"
                placeholder="Brief title, e.g. 'Broken street light near library'"
+               value="{{ form_data.title if form_data else '' }}"
                required maxlength="200" />
         <span class="form-hint">Keep it short and descriptive (max 200 characters)</span>
       </div>
@@ -98,7 +180,7 @@
         <label for="description" class="form-label">Description <span class="required">*</span></label>
         <textarea id="description" name="description" class="form-textarea"
                   placeholder="Describe the problem in detail. When did you notice it? How severe is it? Who is affected?"
-                  required rows="5" maxlength="2000"></textarea>
+                  required rows="5" maxlength="2000">{{ form_data.description if form_data else '' }}</textarea>
         <span class="form-hint" id="desc-char-count">0 / 2000 characters</span>
       </div>
     </div>
@@ -108,27 +190,49 @@
       <div class="form-group">
         <label for="category" class="form-label">Category <span class="required">*</span></label>
         <select id="category" name="category" class="form-select" required>
-          <option value="" disabled selected>Select a category…</option>
+          <option value="" disabled {% if not form_data or not form_data.category %}selected{% endif %}>Select a category…</option>
           {% for cat in categories %}
-          <option value="{{ cat }}">{{ cat }}</option>
+          <option value="{{ cat }}" {% if form_data and form_data.category == cat %}selected{% endif %}>{{ cat }}</option>
           {% endfor %}
         </select>
         <span class="form-hint">AI will verify and may re-categorise your report</span>
       </div>
     </div>
 
-    <!-- Location -->
+    <!-- Location & Campus Building Selection -->
     <div class="form-section">
       <div class="form-group">
-        <label class="form-label">Location <span class="form-hint-inline">(recommended — helps prioritise your report)</span></label>
+        <label class="form-label">Problem Location <span class="form-hint-inline">(select campus building or click on the map)</span></label>
+
+        <!-- Campus Building Selector -->
+        <div class="building-select-wrap">
+          <select id="campus_building" name="campus_building" class="form-select" aria-label="Select Campus Building">
+            <option value="">-- Select Campus Building / Area --</option>
+            <option value="smvec-admin-block" {% if form_data and form_data.campus_building == 'smvec-admin-block' %}selected{% endif %}>🏫 Main Administrative Block & Admissions</option>
+            <option value="smvec-central-library" {% if form_data and form_data.campus_building == 'smvec-central-library' %}selected{% endif %}>📚 Central Library & Digital Knowledge Centre</option>
+            <option value="smvec-cse-it-block" {% if form_data and form_data.campus_building == 'smvec-cse-it-block' %}selected{% endif %}>💻 CSE, IT & AI-DS Academic Block</option>
+            <option value="smvec-eee-ece-block" {% if form_data and form_data.campus_building == 'smvec-eee-ece-block' %}selected{% endif %}>⚡ ECE & EEE Engineering Block</option>
+            <option value="smvec-mech-civil-block" {% if form_data and form_data.campus_building == 'smvec-mech-civil-block' %}selected{% endif %}>🏗️ Mechanical & Civil Engineering Block</option>
+            <option value="smvec-science-humanities" {% if form_data and form_data.campus_building == 'smvec-science-humanities' %}selected{% endif %}>🧪 Science & Humanities Block (Freshman Wing)</option>
+            <option value="smvec-auditorium" {% if form_data and form_data.campus_building == 'smvec-auditorium' %}selected{% endif %}>🎭 Main Auditorium & Convention Hall</option>
+            <option value="smvec-canteen" {% if form_data and form_data.campus_building == 'smvec-canteen' %}selected{% endif %}>🍽️ Central Food Court & Student Canteen</option>
+            <option value="smvec-workshops-incubation" {% if form_data and form_data.campus_building == 'smvec-workshops-incubation' %}selected{% endif %}>⚙️ Central Workshops & Incubation Centre</option>
+            <option value="smvec-boys-hostel" {% if form_data and form_data.campus_building == 'smvec-boys-hostel' %}selected{% endif %}>🏢 Boys Hostel & Dining Complex</option>
+            <option value="smvec-girls-hostel" {% if form_data and form_data.campus_building == 'smvec-girls-hostel' %}selected{% endif %}>🏢 Girls Hostel Complex</option>
+            <option value="smvec-sports-ground" {% if form_data and form_data.campus_building == 'smvec-sports-ground' %}selected{% endif %}>⚽ Main Sports Ground & Athletics Complex</option>
+            <option value="smvec-main-gate" {% if form_data and form_data.campus_building == 'smvec-main-gate' %}selected{% endif %}>🚪 Main Campus Entrance & Security Gate</option>
+            <option value="smvec-parking" {% if form_data and form_data.campus_building == 'smvec-parking' %}selected{% endif %}>🚗 Vehicle Parking Arena</option>
+            <option value="custom" {% if form_data and form_data.campus_building == 'custom' %}selected{% endif %}>📍 Custom Pin on Map / Other Location</option>
+          </select>
+        </div>
 
         <!-- Instruction banner -->
         <div class="map-instruction-banner" id="map-banner">
           <span>📍</span>
-          <span id="map-banner-text">Click anywhere on the map to drop a pin at the problem location</span>
+          <span id="map-banner-text">Select a campus building above or click anywhere on the SMVEC map below</span>
         </div>
 
-        <!-- Leaflet map -->
+        <!-- Leaflet map with interactive buildings -->
         <div class="location-map-wrap">
           <div id="location-map" class="location-map" role="application"
                aria-label="Click to select problem location on map"></div>
@@ -145,14 +249,15 @@
         </div>
 
         <!-- Hidden coordinate inputs -->
-        <input type="hidden" id="latitude"  name="latitude" />
-        <input type="hidden" id="longitude" name="longitude" />
+        <input type="hidden" id="latitude"  name="latitude" value="{{ form_data.latitude if form_data and form_data.latitude is not none else '' }}" />
+        <input type="hidden" id="longitude" name="longitude" value="{{ form_data.longitude if form_data and form_data.longitude is not none else '' }}" />
 
         <!-- Visible label + coords -->
         <input type="text" id="location_label" name="location_label" class="form-input"
-               placeholder="Location name (e.g. 'Near Block C Gate')" maxlength="200"
+               placeholder="Specific location details (e.g. 'Lab 2, 2nd Floor Corridor')" maxlength="200"
+               value="{{ form_data.location_label if form_data and form_data.location_label else '' }}"
                style="margin-top: var(--space-xs);" />
-        <p class="location-coords" id="coords-display">No location selected — click the map to add one</p>
+        <p class="location-coords" id="coords-display">No location selected — choose a building or click the map</p>
       </div>
     </div>
 
@@ -176,6 +281,44 @@
       </div>
     </div>
 
+    <!-- Emergency / Safety Issue Option -->
+    <div class="form-section">
+      <div class="form-group" style="margin-bottom: 0;">
+        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md);">
+          <input type="checkbox" id="is_emergency" name="is_emergency" value="1"
+                 {% if form_data and form_data.is_emergency %}checked{% endif %}
+                 style="width: 18px; height: 18px; margin-top: 2px; accent-color: #ef4444; cursor: pointer;" />
+          <label for="is_emergency" style="cursor: pointer; margin: 0; user-select: none;">
+            <strong style="color: #ef4444; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+              🚨 Emergency / Safety Issue
+            </strong>
+            <p style="margin: 3px 0 0 0; font-size: 0.82rem; color: var(--clr-text-muted);">
+              Flag this report as an urgent campus emergency or safety hazard for immediate administrator attention.
+            </p>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anonymous Reporting Toggle Section -->
+    <div class="form-section">
+      <div class="form-group" style="margin-bottom: 0;">
+        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-md);">
+          <input type="checkbox" id="is_anonymous" name="is_anonymous" value="1"
+                 {% if form_data and form_data.is_anonymous %}checked{% endif %}
+                 style="width: 18px; height: 18px; margin-top: 2px; accent-color: var(--clr-primary); cursor: pointer;" />
+          <label for="is_anonymous" style="cursor: pointer; margin: 0; user-select: none;">
+            <strong style="color: var(--clr-text); font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+              🔒 Report Anonymously
+            </strong>
+            <p style="margin: 3px 0 0 0; font-size: 0.82rem; color: var(--clr-text-muted);">
+              Your identity will be hidden from administrators when enabled.
+            </p>
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- AI Notice -->
     <div class="ai-notice" role="note">
       <span class="ai-notice-icon" aria-hidden="true">✨</span>
@@ -183,6 +326,46 @@
         <strong>AI Analysis</strong>
         <p>After submission, our AI will automatically determine the priority level,
            verify the category, generate a summary, and analyse the sentiment of your report.</p>
+      </div>
+    </div>
+
+    <!-- Duplicate Warning Alert Box -->
+    <div id="duplicate-warning-box" class="duplicate-warning-banner" {% if not duplicate_warning %}style="display:none;"{% endif %}>
+      <div class="duplicate-header">
+        <span class="duplicate-icon">⚠️</span>
+        <div>
+          <h3 class="duplicate-title">A similar problem has already been reported at this location.</h3>
+          <p class="duplicate-subtitle">An existing campus report closely matches what you entered. You can view the existing issue or submit anyway if it is distinct.</p>
+        </div>
+      </div>
+      <div class="duplicate-card">
+        <div class="duplicate-card-header">
+          <span class="duplicate-card-title" id="dup-title">{{ duplicate_warning.title if duplicate_warning else '' }}</span>
+          <span class="badge badge--status badge--{{ (duplicate_warning.status|lower|replace(' ', '-')) if duplicate_warning else 'reported' }}" id="dup-status">
+            {{ duplicate_warning.status if duplicate_warning else '' }}
+          </span>
+        </div>
+        <div class="duplicate-meta">
+          <div class="duplicate-meta-item">
+            <span>📍</span>
+            <strong style="color:var(--clr-text-muted);">Location:</strong>
+            <span id="dup-location">{{ duplicate_warning.location if duplicate_warning else '' }}</span>
+          </div>
+          <div class="duplicate-meta-item">
+            <span>📊</span>
+            <strong style="color:var(--clr-text-muted);">Similarity:</strong>
+            <span class="duplicate-similarity-badge" id="dup-similarity">{{ duplicate_warning.similarity_pct if duplicate_warning else '0' }}% Match</span>
+          </div>
+        </div>
+      </div>
+      <div class="duplicate-actions">
+        <a href="{% if duplicate_warning %}{{ url_for('reports.detail', report_id=duplicate_warning.id) }}{% else %}#{% endif %}"
+           class="btn btn-outline" id="dup-view-btn">
+          👁️ View Existing Report
+        </a>
+        <button type="button" class="btn btn-primary" id="dup-submit-anyway-btn">
+          Submit Anyway
+        </button>
       </div>
     </div>
 
@@ -199,45 +382,40 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='js/campus_buildings.js') }}"></script>
 <script>
 (function () {
   "use strict";
 
-  // ── Leaflet location picker ────────────────────────────────────────────────
-  const mapEl      = document.getElementById("location-map");
-  const latInput   = document.getElementById("latitude");
-  const lngInput   = document.getElementById("longitude");
-  const coordsEl   = document.getElementById("coords-display");
-  const banner     = document.getElementById("map-banner");
-  const bannerText = document.getElementById("map-banner-text");
-  const clearBtn   = document.getElementById("btn-clear-pin");
-  const geoBtn     = document.getElementById("btn-use-location");
-  const labelInput = document.getElementById("location_label");
+  // ── Leaflet location picker with SMVEC Vector Buildings ───────────────────
+  const mapEl          = document.getElementById("location-map");
+  const latInput       = document.getElementById("latitude");
+  const lngInput       = document.getElementById("longitude");
+  const coordsEl       = document.getElementById("coords-display");
+  const banner         = document.getElementById("map-banner");
+  const bannerText     = document.getElementById("map-banner-text");
+  const clearBtn       = document.getElementById("btn-clear-pin");
+  const geoBtn         = document.getElementById("btn-use-location");
+  const labelInput     = document.getElementById("location_label");
+  const buildingSelect = document.getElementById("campus_building");
 
   if (mapEl && typeof L !== "undefined") {
-    // Default center: Sri Manakula Vinayagar Engineering College (SMVEC), Puducherry
-    let centerLat = 11.9213;
-    let centerLng = 79.6385;
-    let centerZoom = 16;
-
-    if (window.CAMPUS_CONFIG) {
-      if (!isNaN(parseFloat(window.CAMPUS_CONFIG.lat))) centerLat = parseFloat(window.CAMPUS_CONFIG.lat);
-      if (!isNaN(parseFloat(window.CAMPUS_CONFIG.lng))) centerLng = parseFloat(window.CAMPUS_CONFIG.lng);
-      if (!isNaN(parseInt(window.CAMPUS_CONFIG.zoom, 10))) centerZoom = parseInt(window.CAMPUS_CONFIG.zoom, 10);
-    }
+    // Center around SMVEC: 11.91411, 79.63558
+    const SMVEC_LAT = 11.91411;
+    const SMVEC_LNG = 79.63558;
+    const DEFAULT_ZOOM = 16;
 
     const map = L.map("location-map", {
       scrollWheelZoom: true,
       zoomControl: true
-    }).setView([centerLat, centerLng], centerZoom);
+    }).setView([SMVEC_LAT, SMVEC_LNG], DEFAULT_ZOOM);
 
     // OpenStreetMap Standard Tile Layer
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | SMVEC',
       maxZoom: 19
     }).addTo(map);
 
-    // Invalidate size in case layout rendered with flex/transitions
     setTimeout(function () {
       map.invalidateSize();
     }, 250);
@@ -252,6 +430,47 @@
     });
 
     let marker = null;
+    let polygonLayers = {};
+
+    // ── Render SMVEC Campus Vector Buildings ───────────────────────────────
+    if (window.SMVEC_CAMPUS_AREAS && Array.isArray(window.SMVEC_CAMPUS_AREAS)) {
+      window.SMVEC_CAMPUS_AREAS.forEach(function (building) {
+        const poly = L.polygon(building.polygon, {
+          color: building.color || "#6366f1",
+          weight: 2,
+          opacity: 0.85,
+          fillColor: building.color || "#6366f1",
+          fillOpacity: 0.18,
+          dashArray: "3, 3"
+        }).addTo(map);
+
+        poly.bindTooltip("<strong>" + building.name + "</strong>", {
+          sticky: true,
+          direction: "top",
+          opacity: 0.95
+        });
+
+        poly.on("mouseover", function () {
+          poly.setStyle({ fillOpacity: 0.35, weight: 3 });
+        });
+        poly.on("mouseout", function () {
+          poly.setStyle({ fillOpacity: 0.18, weight: 2 });
+        });
+
+        poly.on("click", function (e) {
+          L.DomEvent.stopPropagation(e);
+          if (buildingSelect) {
+            buildingSelect.value = building.id;
+          }
+          if (!labelInput.value || window.getBuildingByName(labelInput.value)) {
+            labelInput.value = building.name;
+          }
+          setPin(building.center[0], building.center[1], true);
+        });
+
+        polygonLayers[building.id] = poly;
+      });
+    }
 
     function updateCoords(lat, lng) {
       const fixedLat = lat.toFixed(6);
@@ -261,7 +480,7 @@
       coordsEl.textContent = "📍 Pinned: " + fixedLat + ", " + fixedLng;
       coordsEl.classList.add("has-pin");
       banner.classList.add("pinned");
-      bannerText.textContent = "Location pinned (" + fixedLat + ", " + fixedLng + ")! Click elsewhere or drag marker to adjust.";
+      bannerText.textContent = "Location pinned (" + fixedLat + ", " + fixedLng + ")! Drag marker or choose building above to adjust.";
       clearBtn.style.display = "inline-block";
     }
 
@@ -289,11 +508,29 @@
       }
       latInput.value = "";
       lngInput.value = "";
-      coordsEl.textContent = "No location selected — click the map to add one";
+      if (buildingSelect) buildingSelect.value = "";
+      coordsEl.textContent = "No location selected — choose a building or click the map";
       coordsEl.classList.remove("has-pin");
       banner.classList.remove("pinned");
-      bannerText.textContent = "Click anywhere on the map to drop a pin at the problem location";
+      bannerText.textContent = "Select a campus building above or click anywhere on the SMVEC map below";
       clearBtn.style.display = "none";
+    }
+
+    // Dropdown change listener
+    if (buildingSelect) {
+      buildingSelect.addEventListener("change", function () {
+        const val = this.value;
+        if (!val || val === "custom") {
+          return;
+        }
+        const b = window.getBuildingById(val);
+        if (b) {
+          if (!labelInput.value || window.getBuildingByName(labelInput.value)) {
+            labelInput.value = b.name;
+          }
+          setPin(b.center[0], b.center[1], true);
+        }
+      });
     }
 
     // Check if initial values exist (e.g. form resubmit or edit)
@@ -308,6 +545,9 @@
     // Click anywhere on map → drop or move pin
     map.on("click", function (e) {
       setPin(e.latlng.lat, e.latlng.lng, true);
+      if (!buildingSelect.value) {
+        buildingSelect.value = "custom";
+      }
     });
 
     // Clear pin button
@@ -336,6 +576,7 @@
           setPin(lat, lng, true);
           geoBtn.textContent = "🎯 Use my current location";
           geoBtn.disabled = false;
+          if (buildingSelect) buildingSelect.value = "custom";
           if (!labelInput.value) {
             labelInput.placeholder = "Current Location (or enter custom name)";
           }
@@ -421,21 +662,91 @@
     }
   }
 
-  // ── Form submit state ──────────────────────────────────────────────────────
-  var form      = document.getElementById("report-form");
-  var submitBtn = document.getElementById("submit-btn");
-  if (form && submitBtn) {
-    form.addEventListener("submit", function (e) {
-      // Validate title and description
-      const title = document.getElementById("title");
-      const desc = document.getElementById("description");
-      if (!title.value.trim() || !desc.value.trim()) {
-        return; // Allow browser validation to show
-      }
-      setTimeout(function () {
+  // ── Form submit & duplicate detection handling ────────────────────────────
+  var form               = document.getElementById("report-form");
+  var submitBtn          = document.getElementById("submit-btn");
+  var confirmDupInput    = document.getElementById("confirm_duplicate");
+  var dupBox             = document.getElementById("duplicate-warning-box");
+  var dupTitle           = document.getElementById("dup-title");
+  var dupStatus          = document.getElementById("dup-status");
+  var dupLocation        = document.getElementById("dup-location");
+  var dupSimilarity      = document.getElementById("dup-similarity");
+  var dupViewBtn         = document.getElementById("dup-view-btn");
+  var dupSubmitAnywayBtn = document.getElementById("dup-submit-anyway-btn");
+
+  if (dupSubmitAnywayBtn && form) {
+    dupSubmitAnywayBtn.addEventListener("click", function () {
+      if (confirmDupInput) confirmDupInput.value = "1";
+      if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.textContent = "Submitting…";
-      }, 50);
+      }
+      form.submit();
+    });
+  }
+
+  if (form && submitBtn) {
+    form.addEventListener("submit", async function (e) {
+      const title = document.getElementById("title");
+      const desc = document.getElementById("description");
+      if (!title || !desc || !title.value.trim() || !desc.value.trim()) {
+        return; // Native validation handles empty required fields
+      }
+
+      // If user already clicked "Submit Anyway" or confirmed
+      if (confirmDupInput && confirmDupInput.value === "1") {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting…";
+        return;
+      }
+
+      // Check live for duplicates via lightweight AJAX
+      e.preventDefault();
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Checking for duplicates…";
+
+      try {
+        const formData = new FormData(form);
+        const res = await fetch("{{ url_for('reports.check_duplicate') }}", {
+          method: "POST",
+          body: formData,
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.has_duplicate && data.duplicate) {
+            const d = data.duplicate;
+            if (dupTitle) dupTitle.textContent = d.title;
+            if (dupStatus) {
+              dupStatus.textContent = d.status;
+              dupStatus.className = "badge badge--status badge--" + (d.status.toLowerCase().replace(/\s+/g, "-"));
+            }
+            if (dupLocation) dupLocation.textContent = d.location;
+            if (dupSimilarity) dupSimilarity.textContent = d.similarity_pct + "% Match";
+            if (dupViewBtn) dupViewBtn.href = "/reports/" + d.id;
+
+            if (dupBox) {
+              dupBox.style.display = "block";
+              dupBox.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Submit Report";
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Duplicate check fallback:", err);
+      }
+
+      // No duplicate found or error -> proceed to normal submission
+      if (confirmDupInput) confirmDupInput.value = "1";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting…";
+      form.submit();
     });
   }
 })();

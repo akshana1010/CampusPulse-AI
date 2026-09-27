@@ -11,6 +11,7 @@ Returns:
     summary             – 1-2 sentence human-readable summary
     sentiment           – positive | neutral | negative | urgent
     confidence          – float 0.0–1.0
+    suggested_solution  – practical actionable recommendation for college administration
     raw_response        – full string from the model (for auditing)
 """
 
@@ -28,6 +29,20 @@ VALID_CATEGORIES = [
 VALID_PRIORITIES = ["Low", "Medium", "High", "Critical"]
 VALID_SENTIMENTS = ["positive", "neutral", "negative", "urgent"]
 
+# ── Base Fallback Solutions by Category ──────────────────────────────────────
+FALLBACK_SOLUTIONS = {
+    "Safety": "Inspect the affected campus area immediately, repair or enhance lighting/security measures, and conduct a safety review with campus security personnel.",
+    "Electricity": "Dispatch the electrical maintenance team to inspect faulty wiring, replace damaged components or fixtures, and verify electrical circuit safety.",
+    "Water": "Deploy plumbing staff to inspect the water pipeline/facility, isolate and repair leakages, and restore clean drinking/utility water supply.",
+    "Internet": "Have the campus IT & networking team test the local access points, reboot/reconfigure routers or switches, and restore stable bandwidth connectivity.",
+    "Cleanliness": "Assign custodial and housekeeping staff for thorough sanitization, deploy additional waste bins, and increase scheduled cleaning inspections.",
+    "Infrastructure": "Coordinate with the campus estate and civil maintenance department to inspect structural damage and schedule prompt repairs or furniture replacement.",
+    "Transport": "Coordinate with the campus transport supervisor to review bus timings, shuttle routes, or parking bay management to resolve congestion.",
+    "Academic": "Forward this report to the concerned department head or laboratory coordinator to address classroom equipment and academic facility requirements.",
+    "Accessibility": "Inspect pathways and facilities to install or repair ramps, handrails, or assistive infrastructure to ensure universal accessibility compliance.",
+    "Other": "Review the reported issue with the campus facilities administration and initiate appropriate maintenance or corrective action.",
+}
+
 # ── Fallback result (used when API call fails or key is missing) ───────────────
 _FALLBACK = {
     "predicted_category": "Other",
@@ -35,8 +50,38 @@ _FALLBACK = {
     "summary": "AI analysis unavailable. Please review manually.",
     "sentiment": "neutral",
     "confidence": 0.0,
+    "suggested_solution": FALLBACK_SOLUTIONS["Other"],
     "raw_response": "",
 }
+
+
+def get_fallback_solution(category: str, title: str = "", description: str = "") -> str:
+    """
+    Generate a smart, practical college-focused solution based on category
+    and problem keywords when Gemini is offline or quota is exhausted.
+    """
+    text = f"{title} {description}".lower()
+
+    # Context-specific fine-tuning
+    if "light" in text or "dark" in text:
+        return "Inspect the affected area and repair or install adequate LED lighting. Conduct a nighttime safety inspection to ensure proper visibility."
+    if "pipe" in text or "leak" in text or "overflow" in text or "flood" in text:
+        return "Dispatch plumbing team immediately to isolate the valve, repair the leaking pipeline, and ensure water drainage is cleared."
+    if "wifi" in text or "wi-fi" in text or "internet" in text or "signal" in text:
+        return "Instruct campus IT networking staff to inspect and reboot the wireless access point, replace faulty network patch cords, and verify signal strength."
+    if "wire" in text or "spark" in text or "socket" in text or "switchboard" in text:
+        return "Depute qualified campus electricians to isolate power, insulate exposed wiring, and replace faulty electrical switchgear."
+    if "dustbin" in text or "garbage" in text or "trash" in text or "smell" in text:
+        return "Deploy sanitation crew to clear accumulated waste, sanitize the area, and install covered disposal bins."
+    if "bench" in text or "chair" in text or "desk" in text or "window" in text or "door" in text:
+        return "Dispatch carpentry and civil maintenance staff to repair or replace the damaged furniture and hardware fixtures."
+    if "bus" in text or "shuttle" in text or "parking" in text:
+        return "Coordinate with transport staff to adjust vehicle trip schedules and streamline parking bay allocation."
+    if "projector" in text or "lab" in text or "computer" in text:
+        return "Notify lab technical assistant and department coordinator to service audiovisual/computer hardware before upcoming lectures."
+
+    cat = category if category in FALLBACK_SOLUTIONS else "Other"
+    return FALLBACK_SOLUTIONS.get(cat, FALLBACK_SOLUTIONS["Other"])
 
 
 def analyze_report(title: str, description: str, user_category: str) -> dict:
@@ -50,7 +95,7 @@ def analyze_report(title: str, description: str, user_category: str) -> dict:
 
     Returns:
         A dict with keys: predicted_category, priority, summary,
-                          sentiment, confidence, raw_response.
+                          sentiment, confidence, suggested_solution, raw_response.
     """
     import os
     api_key = (current_app.config.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")).strip()
@@ -77,7 +122,7 @@ def analyze_report(title: str, description: str, user_category: str) -> dict:
         )
 
         raw_text = response.text.strip()
-        result = _parse_response(raw_text, user_category)
+        result = _parse_response(raw_text, user_category, title, description)
         result["raw_response"] = raw_text
         return result
 
@@ -112,7 +157,8 @@ Respond with ONLY this JSON structure (no markdown, no explanation):
   "priority": "<one of: {priorities_list}>",
   "summary": "<1-2 sentence objective summary of the problem>",
   "sentiment": "<one of: {sentiments_list}>",
-  "confidence": <float between 0.0 and 1.0>
+  "confidence": <float between 0.0 and 1.0>,
+  "suggested_solution": "<1-2 sentence practical, actionable recommendation for college administration to fix or resolve this problem>"
 }}
 
 Priority guidelines:
@@ -129,7 +175,7 @@ Sentiment guidelines:
 """
 
 
-def _parse_response(raw_text: str, fallback_category: str) -> dict:
+def _parse_response(raw_text: str, fallback_category: str, title: str = "", description: str = "") -> dict:
     """
     Parse and validate the JSON response from Gemini.
     Falls back gracefully if the model returns malformed JSON.
@@ -146,12 +192,18 @@ def _parse_response(raw_text: str, fallback_category: str) -> dict:
         logger.warning(f"Gemini returned non-JSON response: {raw_text[:200]}")
         return dict(_FALLBACK)
 
+    pred_cat = _safe_get(data, "predicted_category", VALID_CATEGORIES, fallback_category)
+    solution = data.get("suggested_solution")
+    if not solution or not str(solution).strip():
+        solution = get_fallback_solution(pred_cat, title, description)
+
     return {
-        "predicted_category": _safe_get(data, "predicted_category", VALID_CATEGORIES, fallback_category),
+        "predicted_category": pred_cat,
         "priority": _safe_get(data, "priority", VALID_PRIORITIES, "Low"),
         "summary": str(data.get("summary", _FALLBACK["summary"]))[:500],
         "sentiment": _safe_get(data, "sentiment", VALID_SENTIMENTS, "neutral"),
         "confidence": _clamp_float(data.get("confidence", 0.0)),
+        "suggested_solution": str(solution)[:500],
     }
 
 
@@ -245,18 +297,23 @@ def _local_fallback_analyzer(title: str, description: str, user_category: str) -
     clean_title = title.strip().rstrip(".")
     summary = f"{clean_title}. Issue categorized under {predicted_category} with {priority} priority."
 
+    # 6. Practical Suggested Solution
+    suggested_solution = get_fallback_solution(predicted_category, title, description)
+
     return {
         "predicted_category": predicted_category,
         "priority": priority,
         "summary": summary,
         "sentiment": sentiment,
         "confidence": confidence,
+        "suggested_solution": suggested_solution,
         "raw_response": json.dumps({
             "source": "local_fallback",
             "predicted_category": predicted_category,
             "priority": priority,
             "summary": summary,
             "sentiment": sentiment,
-            "confidence": confidence
+            "confidence": confidence,
+            "suggested_solution": suggested_solution,
         }),
     }

@@ -53,6 +53,15 @@
       </select>
     </div>
 
+    <div class="filter-group">
+      <label for="filter-emergency" class="sr-only">Emergency</label>
+      <select id="filter-emergency" name="emergency" class="form-select form-select--sm">
+        <option value="">All Reports</option>
+        <option value="true" {% if current_filters.emergency in ['true', '1', 'emergency', 'yes'] %}selected{% endif %}>🚨 Emergency Only</option>
+        <option value="false" {% if current_filters.emergency in ['false', '0', 'non-emergency', 'no'] %}selected{% endif %}>Non-Emergency</option>
+      </select>
+    </div>
+
     <button type="submit" class="btn btn-primary btn-sm">Filter</button>
     <a href="{{ url_for('admin.reports') }}" class="btn btn-outline btn-sm">Reset</a>
   </form>
@@ -68,6 +77,7 @@
           <th scope="col">Category</th>
           <th scope="col">Priority</th>
           <th scope="col">Status</th>
+          <th scope="col">Supports</th>
           <th scope="col">Submitted</th>
           <th scope="col">Actions</th>
         </tr>
@@ -76,8 +86,19 @@
         {% for report in reports.items %}
         <tr id="row-{{ report.id }}">
           <td><a href="{{ url_for('admin.report_detail', report_id=report.id) }}">#{{ report.id }}</a></td>
-          <td class="td-title">{{ report.title[:60] }}{% if report.title|length > 60 %}…{% endif %}</td>
-          <td>{{ report.author.name if report.author else '—' }}</td>
+          <td class="td-title">
+            {% if report.is_emergency %}
+            <span class="badge" style="background: rgba(239, 68, 68, 0.18); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.68rem; padding: 1px 5px; margin-right: 4px; font-weight: 700;">🚨 Emergency</span>
+            {% endif %}
+            {{ report.title[:55] }}{% if report.title|length > 55 %}…{% endif %}
+          </td>
+          <td>
+            {% if report.is_anonymous %}
+            <span style="color: #818cf8; font-size: 0.82rem; font-weight: 500;">🔒 Anonymous Student</span>
+            {% else %}
+            {{ report.author.name if report.author else '—' }}
+            {% endif %}
+          </td>
           <td><span class="badge badge--category">{{ report.category }}</span></td>
           <td><span class="badge badge--priority badge--{{ report.priority | lower }}">{{ report.priority }}</span></td>
           <td>
@@ -88,6 +109,11 @@
               {% endfor %}
             </select>
           </td>
+          <td>
+            <span class="badge" style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); font-size:0.75rem; padding:2px 7px;">
+              👍 {{ report.upvote_count }}
+            </span>
+          </td>
           <td>{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</td>
           <td>
             <a href="{{ url_for('admin.report_detail', report_id=report.id) }}"
@@ -96,7 +122,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="8" class="td-empty">No reports match your filters.</td>
+          <td colspan="9" class="td-empty">No reports match your filters.</td>
         </tr>
         {% endfor %}
       </tbody>

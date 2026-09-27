@@ -38,11 +38,16 @@
         <span class="stat-label">Resolved</span>
       </div>
     </div>
-    <div class="stat-card stat-card--red">
+    <div class="stat-card stat-card--red" style="border: 1px solid rgba(239, 68, 68, 0.4); background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.04));">
       <span class="stat-icon" aria-hidden="true">🚨</span>
       <div class="stat-info">
-        <span class="stat-value">{{ high_critical }}</span>
-        <span class="stat-label">High/Critical Priority</span>
+        <span class="stat-value" style="color: #ef4444;">{{ emergency_open }} <small style="font-size: 0.75rem; color: var(--clr-text-muted); font-weight: normal;">({{ emergency_total }} total)</small></span>
+        <span class="stat-label" style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+          <span>Emergency Reports</span>
+          {% if emergency_open > 0 %}
+          <a href="{{ url_for('admin.reports', emergency='true') }}" style="color: #ef4444; font-size: 0.72rem; text-decoration: underline;">View →</a>
+          {% endif %}
+        </span>
       </div>
     </div>
   </div>
@@ -75,6 +80,7 @@
             <th scope="col">Category</th>
             <th scope="col">Priority</th>
             <th scope="col">Status</th>
+            <th scope="col">Supports</th>
             <th scope="col">Submitted</th>
             <th scope="col">Action</th>
           </tr>
@@ -83,10 +89,20 @@
           {% for report in recent %}
           <tr>
             <td>#{{ report.id }}</td>
-            <td class="td-title">{{ report.title[:50] }}{% if report.title|length > 50 %}…{% endif %}</td>
+            <td class="td-title">
+              {% if report.is_emergency %}
+              <span class="badge" style="background: rgba(239, 68, 68, 0.18); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.68rem; padding: 1px 5px; margin-right: 4px; font-weight: 700;">🚨 Emergency</span>
+              {% endif %}
+              {{ report.title[:50] }}{% if report.title|length > 50 %}…{% endif %}
+            </td>
             <td><span class="badge badge--category">{{ report.category }}</span></td>
             <td><span class="badge badge--priority badge--{{ report.priority | lower }}">{{ report.priority }}</span></td>
             <td><span class="badge badge--status badge--status-{{ report.status | lower | replace(' ', '-') }}">{{ report.status }}</span></td>
+            <td>
+              <span class="badge" style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); font-size:0.75rem; padding:2px 7px;">
+                👍 {{ report.upvote_count }}
+              </span>
+            </td>
             <td>{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</td>
             <td>
               <a href="{{ url_for('admin.report_detail', report_id=report.id) }}"

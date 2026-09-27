@@ -1,270 +1,1128 @@
 <!-- templates/student/campus_map.html -->
 {% extends "base.html" %}
-{% block title %}Campus Map – CampusPulse AI{% endblock %}
+{% block title %}Live Campus Problem Map – CampusPulse AI{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}" />
 <style>
-  /* ── Campus Map page layout ────────────────────────────────────────── */
-  .map-page { display: flex; flex-direction: column; height: calc(100vh - var(--nav-height)); }
+  /* ── Page Layout ───────────────────────────────────────────────────── */
+  .campus-map-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--space-xl) var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xl);
+  }
+
+  /* ── Live Problem Map Card (Primary Interactive Map) ───────────────── */
+  .interactive-map-card {
+    background: var(--clr-bg-card);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+  }
 
   .map-toolbar {
-    display: flex; align-items: center; gap: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
     padding: var(--space-md) var(--space-xl);
     background: var(--clr-bg-card);
     border-bottom: 1px solid var(--clr-border);
     flex-wrap: wrap;
   }
-  .map-toolbar-title {
-    font-family: var(--font-display); font-size: 1.1rem; font-weight: 700;
-    color: var(--clr-text); display: flex; align-items: center; gap: var(--space-sm);
-    margin-right: auto;
-  }
-  .map-stat-pill {
-    background: var(--clr-bg-card-2); border: 1px solid var(--clr-border);
-    border-radius: var(--radius-full); padding: 4px 14px;
-    font-size: 0.8rem; color: var(--clr-text-muted);
-  }
-  .map-stat-pill strong { color: var(--clr-primary); }
 
-  /* Filter row */
-  .map-filters {
-    display: flex; gap: var(--space-sm); align-items: center;
-    padding: var(--space-sm) var(--space-xl);
-    background: rgba(26,29,39,0.7);
-    border-bottom: 1px solid var(--clr-border);
+  .map-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
     flex-wrap: wrap;
   }
-  .filter-label { font-size: 0.78rem; color: var(--clr-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-  .filter-chip {
-    padding: 4px 12px; border-radius: var(--radius-full);
-    border: 1px solid var(--clr-border); background: transparent;
-    color: var(--clr-text-muted); font-size: 0.8rem; cursor: pointer;
+
+  .map-toolbar-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--clr-text);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  .map-stat-pill {
+    background: var(--clr-bg-card-2);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-full);
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    color: var(--clr-text-muted);
+  }
+  .map-stat-pill strong {
+    color: var(--clr-primary);
+  }
+
+  .map-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+  }
+
+  .heatmap-toggle-btn {
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: var(--clr-bg-card-2);
+    border: 1px solid var(--clr-border);
+    color: var(--clr-text);
     transition: all var(--transition-fast);
   }
-  .filter-chip:hover  { border-color: var(--clr-primary); color: var(--clr-primary); }
-  .filter-chip.active { background: var(--clr-primary); border-color: var(--clr-primary); color: #fff; }
+  .heatmap-toggle-btn:hover {
+    border-color: #ef4444;
+    color: #fca5a5;
+  }
+  .heatmap-toggle-btn.active {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(249, 115, 22, 0.25) 100%);
+    border-color: #ef4444;
+    color: #fecaca;
+    font-weight: 600;
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+  }
 
-  /* Map canvas – explicit height required for Leaflet to initialize */
+  /* ── Filter Bar ────────────────────────────────────────────────────── */
+  .map-filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-xl);
+    background: rgba(18, 22, 34, 0.95);
+    border-bottom: 1px solid var(--clr-border);
+  }
+
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+  }
+
+  .filter-label {
+    font-size: 0.76rem;
+    color: var(--clr-text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    min-width: 60px;
+  }
+
+  .filter-chip {
+    padding: 4px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--clr-border);
+    background: var(--clr-bg-card);
+    color: var(--clr-text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .filter-chip:hover {
+    border-color: var(--clr-primary);
+    color: var(--clr-text);
+  }
+
+  .filter-chip.active {
+    background: var(--clr-primary);
+    border-color: var(--clr-primary);
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .filter-select {
+    padding: 5px 12px;
+    background: var(--clr-bg-card);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
+    color: var(--clr-text);
+    font-size: 0.82rem;
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition-fast);
+  }
+  .filter-select:focus {
+    border-color: var(--clr-primary);
+  }
+
+  .filter-reset-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--clr-border);
+    color: var(--clr-text-muted);
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .filter-reset-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+  }
+
+  /* ── Leaflet Canvas ────────────────────────────────────────────────── */
+  .map-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 620px;
+    height: 68vh;
+    background: #0f1422;
+  }
+
   #campus-map {
-    flex: 1;
-    height: calc(100vh - 160px);
-    min-height: 500px;
+    width: 100%;
+    height: 100%;
+    min-height: 620px;
     z-index: 1;
   }
 
-  /* Popup overrides to match dark theme */
+  /* Map Controls Overlay */
+  .map-center-btn {
+    position: absolute;
+    top: 80px;
+    left: 12px;
+    z-index: 1000;
+    background: var(--clr-bg-card);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    color: var(--clr-text);
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--transition-fast);
+  }
+  .map-center-btn:hover {
+    background: var(--clr-primary);
+    color: #fff;
+    border-color: var(--clr-primary);
+  }
+
+  /* Leaflet Popups */
   .leaflet-popup-content-wrapper {
     background: var(--clr-bg-card) !important;
     color: var(--clr-text) !important;
     border: 1px solid var(--clr-border) !important;
-    border-radius: var(--radius-md) !important;
-    box-shadow: var(--shadow-lg) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+    padding: 4px !important;
   }
-  .leaflet-popup-tip { background: var(--clr-bg-card) !important; }
-  .popup-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
-  .popup-meta  { font-size: 0.78rem; color: var(--clr-text-muted); margin-bottom: 8px; }
-  .popup-link  { font-size: 0.82rem; color: var(--clr-primary); text-decoration: none; }
-  .popup-link:hover { text-decoration: underline; }
+  .leaflet-popup-tip {
+    background: var(--clr-bg-card) !important;
+  }
+
+  .map-popup-card {
+    padding: var(--space-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 290px;
+  }
+  .map-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .map-popup-title {
+    font-weight: 700;
+    font-size: 0.96rem;
+    color: var(--clr-text);
+    line-height: 1.3;
+    margin: 0;
+  }
+  .map-popup-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 2px 0;
+  }
+  .popup-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+  .popup-badge--category {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
+  .popup-badge--critical {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  .popup-badge--high {
+    background: rgba(249, 115, 22, 0.15);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.3);
+  }
+  .popup-badge--medium {
+    background: rgba(234, 179, 8, 0.15);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+  }
+  .popup-badge--low {
+    background: rgba(100, 116, 139, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+  }
+  .popup-badge--status {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--clr-text-muted);
+    border: 1px solid var(--clr-border);
+  }
+  .popup-badge--resolved {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+
+  .map-popup-desc {
+    font-size: 0.82rem;
+    color: var(--clr-text-muted);
+    line-height: 1.4;
+    margin: 0;
+    border-top: 1px solid var(--clr-border);
+    padding-top: 6px;
+  }
+  .map-popup-location {
+    font-size: 0.78rem;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+  }
+  .map-popup-btn {
+    font-size: 0.82rem;
+    color: var(--clr-primary);
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+  .map-popup-btn:hover {
+    text-decoration: underline;
+  }
+
+  /* Building Area Info Popup */
+  .building-popup-card {
+    padding: var(--space-xs);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 280px;
+  }
+  .building-popup-title {
+    font-weight: 700;
+    font-size: 0.98rem;
+    color: var(--clr-text);
+    margin: 0;
+  }
+  .building-popup-meta {
+    font-size: 0.75rem;
+    color: var(--clr-text-muted);
+  }
+  .building-popup-desc {
+    font-size: 0.80rem;
+    color: var(--clr-text-muted);
+    line-height: 1.35;
+    margin: 0;
+  }
+  .building-report-count {
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: var(--radius-sm);
+    color: #818cf8;
+    margin-top: 4px;
+  }
 
   /* Legend */
   .map-legend {
-    background: var(--clr-bg-card); border: 1px solid var(--clr-border);
-    border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md);
+    background: rgba(18, 22, 34, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.76rem;
+    color: var(--clr-text);
+    box-shadow: var(--shadow-md);
+  }
+  .map-legend-title {
+    font-weight: 700;
     font-size: 0.78rem;
+    color: var(--clr-text-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
-  .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
 
-  /* No-reports banner */
+  /* Empty overlay */
   .map-empty {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    z-index: 500; text-align: center; pointer-events: none;
-    background: rgba(26,29,39,0.9); border: 1px solid var(--clr-border);
-    border-radius: var(--radius-lg); padding: var(--space-xl);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    text-align: center;
+    pointer-events: none;
+    background: rgba(26, 29, 39, 0.92);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-lg);
   }
-  .map-empty-icon { font-size: 2.5rem; margin-bottom: var(--space-sm); display: block; }
+  .map-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--space-sm);
+    display: block;
+  }
+
+  /* ── SMVEC Campus Blueprint / Reference Map Section ────────────────── */
+  .static-map-card {
+    background: var(--clr-bg-card);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  .static-map-header {
+    padding: var(--space-md) var(--space-xl);
+    border-bottom: 1px solid var(--clr-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+  }
+
+  .static-map-title-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+  }
+
+  .static-map-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    font-size: 1.25rem;
+  }
+
+  .static-map-header h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--clr-text);
+  }
+
+  .static-map-subtitle {
+    margin: 2px 0 0;
+    font-size: 0.82rem;
+    color: var(--clr-text-muted);
+  }
+
+  .static-map-body {
+    padding: var(--space-lg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #0b0f19;
+  }
+
+  .static-map-image-wrapper {
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: #070a12;
+    border: 1px solid var(--clr-border);
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.6);
+  }
+
+  .smvec-map-img {
+    width: 100%;
+    height: auto;
+    max-height: 80vh;
+    object-fit: contain;
+    display: block;
+    border-radius: inherit;
+  }
+
+  @media (max-width: 768px) {
+    .campus-map-container {
+      padding: var(--space-md) var(--space-sm);
+      gap: var(--space-lg);
+    }
+    .map-filter-panel {
+      padding: var(--space-sm) var(--space-md);
+    }
+    .map-wrapper, #campus-map {
+      min-height: 480px;
+      height: 58vh;
+    }
+    .static-map-body {
+      padding: var(--space-sm);
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="map-page">
+<div class="campus-map-container">
 
-  <!-- Toolbar -->
-  <div class="map-toolbar">
-    <span class="map-toolbar-title">🗺️ Campus Problem Map</span>
-    <span class="map-stat-pill">
-      <strong id="visible-count">–</strong> reports shown
-    </span>
-    <a href="{{ url_for('reports.submit') }}" class="btn btn-primary" style="font-size:0.85rem;padding:6px 14px;">
-      + Report Problem
-    </a>
-  </div>
-
-  <!-- Priority filter chips -->
-  <div class="map-filters">
-    <span class="filter-label">Filter:</span>
-    <button class="filter-chip active" data-filter="all"  id="f-all">All</button>
-    <button class="filter-chip" data-filter="Critical"    id="f-critical">🔴 Critical</button>
-    <button class="filter-chip" data-filter="High"        id="f-high">🟠 High</button>
-    <button class="filter-chip" data-filter="Medium"      id="f-medium">🟡 Medium</button>
-    <button class="filter-chip" data-filter="Low"         id="f-low">⚪ Low</button>
-    <button class="filter-chip" data-filter="Resolved"    id="f-resolved">✅ Resolved</button>
-  </div>
-
-  <!-- Map canvas -->
-  <div style="position:relative; flex:1; display:flex; flex-direction:column;">
-    <div id="campus-map"></div>
-    {% if total_reports == 0 %}
-    <div class="map-empty" id="map-empty-msg">
-      <span class="map-empty-icon">📍</span>
-      <p style="color:var(--clr-text-muted); font-size:0.9rem;">
-        No geolocated reports yet.<br>
-        Submit a report with a location to see it here.
-      </p>
+  <!-- ── 1. PRIMARY LIVE PROBLEM MAP (Interactive OpenStreetMap + SMVEC Vector Overlay) ── -->
+  <section class="interactive-map-card" aria-label="Interactive Problem Reports Map">
+    <!-- Toolbar -->
+    <div class="map-toolbar">
+      <div class="map-toolbar-left">
+        <span class="map-toolbar-title">🗺️ Live Problem Map</span>
+        <span class="map-stat-pill">
+          <strong id="visible-count">–</strong> reports visible
+        </span>
+      </div>
+      <div class="map-toolbar-actions">
+        <button type="button" id="toggle-heatmap-btn" class="heatmap-toggle-btn" aria-pressed="false" title="Toggle Problem Heatmap Layer">
+          <span>🔥</span>
+          <span id="heatmap-btn-label">Heatmap: OFF</span>
+        </button>
+        <a href="{{ url_for('reports.submit') }}" class="btn btn-primary" style="font-size:0.85rem;padding:6px 14px;">
+          + Report Problem
+        </a>
+      </div>
     </div>
-    {% endif %}
-  </div>
+
+    <!-- Multi-Criteria Filters -->
+    <div class="map-filter-panel">
+      <!-- Priority Filter Row -->
+      <div class="filter-row">
+        <span class="filter-label">Priority:</span>
+        <div class="filter-group">
+          <button class="filter-chip active" data-filter-type="priority" data-filter-val="all" id="fp-all">All</button>
+          <button class="filter-chip" data-filter-type="priority" data-filter-val="Critical" id="fp-critical">🔴 Critical</button>
+          <button class="filter-chip" data-filter-type="priority" data-filter-val="High" id="fp-high">🟠 High</button>
+          <button class="filter-chip" data-filter-type="priority" data-filter-val="Medium" id="fp-medium">🟡 Medium</button>
+          <button class="filter-chip" data-filter-type="priority" data-filter-val="Low" id="fp-low">⚪ Low</button>
+        </div>
+      </div>
+
+      <!-- Status & Category Filter Row -->
+      <div class="filter-row">
+        <span class="filter-label">Status:</span>
+        <div class="filter-group">
+          <button class="filter-chip active" data-filter-type="status" data-filter-val="all" id="fs-all">All</button>
+          <button class="filter-chip" data-filter-type="status" data-filter-val="Reported" id="fs-reported">🟡 Reported</button>
+          <button class="filter-chip" data-filter-type="status" data-filter-val="In Progress" id="fs-inprogress">🔵 In Progress</button>
+          <button class="filter-chip" data-filter-type="status" data-filter-val="Resolved" id="fs-resolved">✅ Resolved</button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:var(--space-xs); margin-left: auto;">
+          <span class="filter-label" style="min-width:auto;">Category:</span>
+          <select id="category-filter-select" class="filter-select" aria-label="Filter by Category">
+            <option value="all">All Categories</option>
+            <option value="Academic">📚 Academic</option>
+            <option value="Cleanliness">🧹 Cleanliness</option>
+            <option value="Electricity">⚡ Electricity</option>
+            <option value="Infrastructure">🏗️ Infrastructure</option>
+            <option value="Internet">📶 Internet / Wi-Fi</option>
+            <option value="Safety">🛡️ Safety</option>
+            <option value="Transport">🚌 Transport</option>
+            <option value="Water">💧 Water</option>
+            <option value="Other">📌 Other</option>
+          </select>
+
+          <button id="reset-filters-btn" class="filter-reset-btn" title="Reset all filters">↺ Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map canvas wrapper -->
+    <div class="map-wrapper">
+      <div id="campus-map"></div>
+
+      <!-- Recenter on SMVEC Button -->
+      <button id="recenter-btn" class="map-center-btn" title="Center on SMVEC Campus">
+        🎯 Recenter SMVEC
+      </button>
+
+      {% if total_reports == 0 %}
+      <div class="map-empty" id="map-empty-msg">
+        <span class="map-empty-icon">📍</span>
+        <p style="color:var(--clr-text-muted); font-size:0.9rem; margin:0;">
+          No geolocated reports yet.<br>
+          Submit a report with a location pin to see it live here.
+        </p>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ── 2. SECONDARY REFERENCE: SMVEC CAMPUS LAYOUT BLUEPRINT ─────────── -->
+  <section class="static-map-card" aria-labelledby="smvec-campus-map-heading">
+    <div class="static-map-header">
+      <div class="static-map-title-group">
+        <span class="static-map-icon" aria-hidden="true">🏫</span>
+        <div>
+          <h2 id="smvec-campus-map-heading">SMVEC Campus Map</h2>
+          <p class="static-map-subtitle">Official Sri Manakula Vinayagar Engineering College Layout Plan (Architectural Reference)</p>
+        </div>
+      </div>
+      <a href="{{ url_for('static', filename='images/smvec_campus_map.png') }}"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="btn btn-secondary"
+         style="font-size: 0.82rem; padding: 6px 14px;">
+        🔍 View Full Resolution
+      </a>
+    </div>
+
+    <div class="static-map-body">
+      <div class="static-map-image-wrapper">
+        <img src="{{ url_for('static', filename='images/smvec_campus_map.png') }}"
+             alt="SMVEC Campus Map"
+             class="smvec-map-img"
+             loading="lazy" />
+      </div>
+    </div>
+  </section>
 
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet-heat.js') }}"></script>
+<script src="{{ url_for('static', filename='js/campus_buildings.js') }}"></script>
 <script>
 (function () {
   'use strict';
 
-  // ── Campus config from body data-attributes (set in base.html) ────────────
-  const cfg = window.CAMPUS_CONFIG || { lat: 28.6139, lng: 77.2090, zoom: 15, name: 'Campus' };
+  // ── SMVEC Campus Geographic Coordinates ──────────────────────────────────
+  const SMVEC_LAT = 11.91411;
+  const SMVEC_LNG = 79.63558;
+  const DEFAULT_ZOOM = 16;
 
-  // ── Initialise map ─────────────────────────────────────────────────────────
+  const campusCfg = window.CAMPUS_CONFIG || {};
+  const initialLat = (!isNaN(campusCfg.lat) && campusCfg.lat !== 28.6139) ? campusCfg.lat : SMVEC_LAT;
+  const initialLng = (!isNaN(campusCfg.lng) && campusCfg.lng !== 77.2090) ? campusCfg.lng : SMVEC_LNG;
+  const initialZoom = (!isNaN(campusCfg.zoom)) ? campusCfg.zoom : DEFAULT_ZOOM;
+
+  // ── Initialise Leaflet Geographic Map ────────────────────────────────────
   const map = L.map('campus-map', {
+    center: [initialLat, initialLng],
+    zoom: initialZoom,
     zoomControl: true,
     scrollWheelZoom: true,
-  }).setView([cfg.lat, cfg.lng], cfg.zoom);
+    dragging: true,
+    doubleClickZoom: true,
+    touchZoom: true
+  });
 
-  // OpenStreetMap Standard Tile Layer
+  // OpenStreetMap Tile Layer
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors | Sri Manakula Vinayagar Engineering College (SMVEC)',
     maxZoom: 19,
+    minZoom: 13
   }).addTo(map);
 
   setTimeout(function () {
     map.invalidateSize();
   }, 250);
 
-  // ── Priority → marker colour mapping ──────────────────────────────────────
-  const COLOURS = {
-    Critical : '#ef4444',
-    High     : '#f97316',
-    Medium   : '#eab308',
-    Low      : '#6b7280',
-    Resolved : '#22c55e',
-  };
-
-  function makeIcon(priority, status) {
-    const colour = status === 'Resolved' ? COLOURS.Resolved : (COLOURS[priority] || COLOURS.Low);
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
-        <path d="M14 0C6.27 0 0 6.27 0 14c0 9.33 14 22 14 22S28 23.33 28 14C28 6.27 21.73 0 14 0z"
-              fill="${colour}" stroke="rgba(0,0,0,.3)" stroke-width="1"/>
-        <circle cx="14" cy="14" r="6" fill="white" opacity=".9"/>
-      </svg>`;
-    return L.divIcon({
-      html: svg,
-      className: '',
-      iconSize: [28, 36],
-      iconAnchor: [14, 36],
-      popupAnchor: [0, -36],
+  // Recenter button listener
+  const recenterBtn = document.getElementById('recenter-btn');
+  if (recenterBtn) {
+    recenterBtn.addEventListener('click', function () {
+      map.setView([SMVEC_LAT, SMVEC_LNG], DEFAULT_ZOOM, { animate: true });
     });
   }
 
-  // ── Legend ─────────────────────────────────────────────────────────────────
+  // ── Priority & Category Styling ──────────────────────────────────────────
+  const PRIORITY_COLORS = {
+    Critical : '#ef4444',
+    High     : '#f97316',
+    Medium   : '#eab308',
+    Low      : '#64748b',
+    Resolved : '#22c55e'
+  };
+
+  const CATEGORY_ICONS = {
+    Academic       : '📚',
+    Cleanliness    : '🧹',
+    Electricity    : '⚡',
+    Infrastructure : '🏗️',
+    Internet       : '📶',
+    Safety         : '🛡️',
+    Transport      : '🚌',
+    Water          : '💧',
+    Other          : '📌'
+  };
+
+  function createMarkerIcon(priority, status, category) {
+    const isResolved = status === 'Resolved';
+    const color = isResolved ? PRIORITY_COLORS.Resolved : (PRIORITY_COLORS[priority] || PRIORITY_COLORS.Low);
+    const catIcon = isResolved ? '✓' : (CATEGORY_ICONS[category] || '📍');
+
+    const svgHtml = `
+      <div style="position:relative; width:34px; height:42px; display:flex; align-items:center; justify-content:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="34" height="42" viewBox="0 0 34 42" style="filter:drop-shadow(0 3px 6px rgba(0,0,0,0.5));">
+          <path d="M17 0C7.61 0 0 7.61 0 17c0 11.4 17 25 17 25S34 28.4 34 17C34 7.61 26.39 0 17 0z"
+                fill="${color}" stroke="#ffffff" stroke-width="1.8"/>
+          <circle cx="17" cy="16" r="11" fill="#ffffff" opacity="0.95"/>
+        </svg>
+        <span style="position:absolute; top:6px; left:0; right:0; text-align:center; font-size:13px; line-height:1; user-select:none;">
+          ${catIcon}
+        </span>
+      </div>`;
+
+    return L.divIcon({
+      html: svgHtml,
+      className: '',
+      iconSize: [34, 42],
+      iconAnchor: [17, 42],
+      popupAnchor: [0, -42]
+    });
+  }
+
+  // ── Render Interactive SMVEC Campus Vector Buildings ─────────────────────
+  const buildingLayers = {};
+  const buildingReportsMap = {};
+
+  if (window.SMVEC_CAMPUS_AREAS && Array.isArray(window.SMVEC_CAMPUS_AREAS)) {
+    window.SMVEC_CAMPUS_AREAS.forEach(function (building) {
+      buildingReportsMap[building.id] = [];
+
+      const poly = L.polygon(building.polygon, {
+        color: building.color || '#6366f1',
+        weight: 2,
+        opacity: 0.85,
+        fillColor: building.color || '#6366f1',
+        fillOpacity: 0.20,
+        dashArray: '4, 4'
+      }).addTo(map);
+
+      // Tooltip on hover
+      poly.bindTooltip('<strong>' + building.name + '</strong>', {
+        sticky: true,
+        direction: 'top',
+        opacity: 0.95
+      });
+
+      poly.on('mouseover', function () {
+        poly.setStyle({ fillOpacity: 0.38, weight: 3 });
+      });
+      poly.on('mouseout', function () {
+        poly.setStyle({ fillOpacity: 0.20, weight: 2 });
+      });
+
+      // Click building polygon -> Show Building Details & Reported Problems Popup
+      poly.on('click', function (e) {
+        L.DomEvent.stopPropagation(e);
+        const reportsAtBuilding = buildingReportsMap[building.id] || [];
+        const reportCountText = reportsAtBuilding.length === 1 ? '1 active report' : reportsAtBuilding.length + ' active reports';
+
+        let reportsListHtml = '';
+        if (reportsAtBuilding.length > 0) {
+          reportsListHtml = '<div style="margin-top:6px; border-top:1px solid var(--clr-border); padding-top:6px;">' +
+            '<strong style="font-size:0.78rem; color:var(--clr-text);">Reports in this Area:</strong>' +
+            '<ul style="margin:4px 0 0; padding-left:16px; font-size:0.78rem; color:var(--clr-text-muted);">';
+          reportsAtBuilding.slice(0, 4).forEach(function (rep) {
+            reportsListHtml += '<li><a href="/reports/' + rep.id + '" style="color:var(--clr-primary); text-decoration:none;">' + escHtml(rep.title) + '</a> (' + escHtml(rep.priority) + ')</li>';
+          });
+          if (reportsAtBuilding.length > 4) {
+            reportsListHtml += '<li><em>+' + (reportsAtBuilding.length - 4) + ' more…</em></li>';
+          }
+          reportsListHtml += '</ul></div>';
+        }
+
+        const buildingPopupHtml = `
+          <div class="building-popup-card">
+            <h4 class="building-popup-title">${escHtml(building.name)}</h4>
+            <div class="building-popup-meta"><strong>Category:</strong> ${escHtml(building.category)} · Code: ${escHtml(building.code)}</div>
+            <p class="building-popup-desc">${escHtml(building.description)}</p>
+            <div class="building-report-count">📍 ${reportCountText}</div>
+            ${reportsListHtml}
+            <div style="margin-top:4px;">
+              <a href="/reports/submit" style="font-size:0.80rem; color:var(--clr-primary); font-weight:600; text-decoration:none;">
+                + Report problem at this building →
+              </a>
+            </div>
+          </div>`;
+
+        L.popup()
+          .setLatLng(e.latlng || building.center)
+          .setContent(buildingPopupHtml)
+          .openOn(map);
+      });
+
+      buildingLayers[building.id] = poly;
+    });
+  }
+
+  // ── Legend ───────────────────────────────────────────────────────────────
   const legend = L.control({ position: 'bottomright' });
   legend.onAdd = function () {
     const div = L.DomUtil.create('div', 'map-legend');
-    div.innerHTML = Object.entries(COLOURS).map(([label, color]) =>
-      `<div class="legend-row">
-        <span class="legend-dot" style="background:${color}"></span>
-        <span style="color:var(--clr-text-muted)">${label}</span>
-      </div>`
-    ).join('');
+    div.innerHTML = `
+      <div class="map-legend-title">Priority Legend</div>
+      <div class="legend-row">
+        <span class="legend-dot" style="background:${PRIORITY_COLORS.Critical}"></span>
+        <span>Critical Priority</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-dot" style="background:${PRIORITY_COLORS.High}"></span>
+        <span>High Priority</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-dot" style="background:${PRIORITY_COLORS.Medium}"></span>
+        <span>Medium Priority</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-dot" style="background:${PRIORITY_COLORS.Low}"></span>
+        <span>Low Priority</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-dot" style="background:${PRIORITY_COLORS.Resolved}"></span>
+        <span>Resolved</span>
+      </div>
+      <div id="heatmap-legend-section" style="margin-top:8px; padding-top:6px; border-top:1px solid var(--clr-border); display:none;">
+        <div class="map-legend-title" style="margin-bottom:4px;">🔥 Problem Heatmap Density</div>
+        <div style="height:8px; border-radius:4px; background:linear-gradient(90deg, #3b82f6, #06b6d4, #22c55e, #eab308, #ef4444); margin-bottom:4px;"></div>
+        <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:var(--clr-text-muted);">
+          <span>Low</span>
+          <span>Moderate</span>
+          <span>High Concentration</span>
+        </div>
+      </div>
+    `;
     return div;
   };
   legend.addTo(map);
 
-  // ── Fetch reports and add markers ──────────────────────────────────────────
+  // ── Problem Heatmap Layer State ──────────────────────────────────────────
+  let heatLayer = null;
+  let heatmapActive = false;
+
+  const PRIORITY_HEAT_WEIGHTS = {
+    Critical : 1.0,
+    High     : 0.8,
+    Medium   : 0.6,
+    Low      : 0.4
+  };
+
+  function getFilteredHeatPoints() {
+    const points = [];
+    allMarkers.forEach(marker => {
+      const d = marker._reportData;
+      if (!d) return;
+
+      // Requirement 7: Resolved reports should not contribute to heatmap
+      if (d.status === 'Resolved') return;
+
+      let matchPriority = (filterPriority === 'all') || (d.priority === filterPriority);
+      let matchStatus   = (filterStatus === 'all') || (d.status === filterStatus);
+      let matchCategory = (filterCategory === 'all') || (d.category === filterCategory);
+
+      if (matchPriority && matchStatus && matchCategory) {
+        const lat = parseFloat(d.latitude);
+        const lng = parseFloat(d.longitude);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          const weight = PRIORITY_HEAT_WEIGHTS[d.priority] || 0.5;
+          points.push([lat, lng, weight]);
+        }
+      }
+    });
+    return points;
+  }
+
+  function updateHeatmapLayer() {
+    const points = getFilteredHeatPoints();
+
+    if (!heatLayer && typeof L.heatLayer === 'function') {
+      heatLayer = L.heatLayer(points, {
+        radius: 28,
+        blur: 18,
+        maxZoom: 18,
+        max: 1.0,
+        minOpacity: 0.35,
+        gradient: {
+          0.2: '#3b82f6',
+          0.4: '#06b6d4',
+          0.6: '#22c55e',
+          0.8: '#eab308',
+          1.0: '#ef4444'
+        }
+      });
+    } else if (heatLayer) {
+      heatLayer.setLatLngs(points);
+    }
+
+    const legendHeatmapSection = document.getElementById('heatmap-legend-section');
+
+    if (heatmapActive && heatLayer) {
+      if (!map.hasLayer(heatLayer)) {
+        map.addLayer(heatLayer);
+      }
+      if (legendHeatmapSection) legendHeatmapSection.style.display = 'block';
+    } else if (heatLayer && map.hasLayer(heatLayer)) {
+      map.removeLayer(heatLayer);
+      if (legendHeatmapSection) legendHeatmapSection.style.display = 'none';
+    }
+  }
+
+  // Heatmap Toggle Button
+  const heatmapBtn = document.getElementById('toggle-heatmap-btn');
+  const heatmapLabel = document.getElementById('heatmap-btn-label');
+  if (heatmapBtn) {
+    heatmapBtn.addEventListener('click', function () {
+      heatmapActive = !heatmapActive;
+      this.classList.toggle('active', heatmapActive);
+      this.setAttribute('aria-pressed', heatmapActive ? 'true' : 'false');
+      if (heatmapLabel) {
+        heatmapLabel.textContent = heatmapActive ? 'Heatmap: ON' : 'Heatmap: OFF';
+      }
+      updateHeatmapLayer();
+    });
+  }
+
+  // ── Fetch Reports and Plot on Real Geographic Map ─────────────────────────
   let allMarkers = [];
-  let activeFilter = 'all';
+  let filterPriority = 'all';
+  let filterStatus = 'all';
+  let filterCategory = 'all';
 
   fetch('/reports/map-data')
     .then(r => r.json())
     .then(reports => {
-      if (!reports.length) return;
+      if (!Array.isArray(reports) || !reports.length) return;
 
-      // Hide the "no reports" message if present
       const emptyMsg = document.getElementById('map-empty-msg');
       if (emptyMsg) emptyMsg.style.display = 'none';
 
+      // Group reports at the exact same location to calculate micro-offsets
+      const coordGroups = {};
       reports.forEach(report => {
-        const marker = L.marker(
-          [report.latitude, report.longitude],
-          { icon: makeIcon(report.priority, report.status) }
-        );
+        const lat = parseFloat(report.latitude);
+        const lng = parseFloat(report.longitude);
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          return;
+        }
+        const key = lat.toFixed(5) + '_' + lng.toFixed(5);
+        if (!coordGroups[key]) coordGroups[key] = [];
+        coordGroups[key].push(report);
 
-        marker.bindPopup(`
-          <div class="popup-title">${escHtml(report.title)}</div>
-          <div class="popup-meta">
-            ${escHtml(report.category)} · ${escHtml(report.priority)} priority · ${escHtml(report.status)}
-            ${report.location_label ? '<br>' + escHtml(report.location_label) : ''}
-          </div>
-          <a class="popup-link" href="/reports/${report.id}">View details →</a>
-        `);
+        // Associate with building if matched
+        if (window.getBuildingByName && report.location_label) {
+          const matchedB = window.getBuildingByName(report.location_label);
+          if (matchedB && buildingReportsMap[matchedB.id]) {
+            buildingReportsMap[matchedB.id].push(report);
+          }
+        }
+      });
 
+      reports.forEach(report => {
+        let lat = parseFloat(report.latitude);
+        let lng = parseFloat(report.longitude);
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          return;
+        }
+
+        const key = lat.toFixed(5) + '_' + lng.toFixed(5);
+        const group = coordGroups[key] || [];
+        const indexInGroup = group.indexOf(report);
+
+        // If multiple reports share exact coordinates, apply micro-offset so all are clickable
+        if (group.length > 1 && indexInGroup > 0) {
+          const angle = (2 * Math.PI / group.length) * indexInGroup;
+          const radius = 0.000045; // ~4.5 meters offset
+          lat = lat + radius * Math.cos(angle);
+          lng = lng + radius * Math.sin(angle);
+        }
+
+        const icon = createMarkerIcon(report.priority, report.status, report.category);
+        const marker = L.marker([lat, lng], { icon: icon });
+
+        // Popup with Category, Priority, Status, Building/Location, Short description, link
+        const priorityClass = 'popup-badge--' + (report.priority ? report.priority.toLowerCase() : 'low');
+        const statusClass = report.status === 'Resolved' ? 'popup-badge--resolved' : 'popup-badge--status';
+
+        const descText = report.description ? escHtml(report.description) : 'No additional description provided.';
+        const locText = report.location_label ? `<div class="map-popup-location">📍 ${escHtml(report.location_label)}</div>` : '';
+
+        const emergencyBadge = report.is_emergency
+          ? '<span class="popup-badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.45); font-weight: 700;">🚨 Emergency</span>'
+          : '';
+
+        const popupHtml = `
+          <div class="map-popup-card">
+            <h4 class="map-popup-title">${escHtml(report.title || 'Campus Problem Report')}</h4>
+            <div class="map-popup-tags">
+              ${emergencyBadge}
+              <span class="popup-badge popup-badge--category">${escHtml(report.category || 'General')}</span>
+              <span class="popup-badge ${priorityClass}">${escHtml(report.priority || 'Low')}</span>
+              <span class="popup-badge ${statusClass}">${escHtml(report.status || 'Reported')}</span>
+            </div>
+            ${locText}
+            <p class="map-popup-desc">${descText}</p>
+            <a class="map-popup-btn" href="/reports/${report.id}">
+              View Report Details →
+            </a>
+          </div>`;
+
+        marker.bindPopup(popupHtml, { maxWidth: 320 });
         marker._reportData = report;
         allMarkers.push(marker);
         marker.addTo(map);
       });
 
       updateCount();
+      updateHeatmapLayer();
 
-      // Fit map to all markers
-      if (allMarkers.length) {
+      // If markers exist, keep SMVEC centered or fit bounds if outside
+      if (allMarkers.length > 0) {
         const group = L.featureGroup(allMarkers);
-        map.fitBounds(group.getBounds().pad(0.15));
+        const bounds = group.getBounds();
+        if (bounds.isValid() && bounds.getNorthEast() && bounds.getSouthWest()) {
+          const center = bounds.getCenter();
+          const dist = Math.abs(center.lat - SMVEC_LAT) + Math.abs(center.lng - SMVEC_LNG);
+          if (dist > 0.05) {
+            map.fitBounds(bounds.pad(0.15));
+          }
+        }
       }
     })
-    .catch(err => console.error('Failed to load map data:', err));
+    .catch(err => console.error('Failed to load live problem map data:', err));
 
-  // ── Filter logic ───────────────────────────────────────────────────────────
-  document.querySelectorAll('.filter-chip').forEach(btn => {
+  // ── Multi-Filter Logic (Priority, Status, Category) ───────────────────────
+  document.querySelectorAll('[data-filter-type="priority"]').forEach(btn => {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('[data-filter-type="priority"]').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
-      activeFilter = this.dataset.filter;
-      applyFilter();
+      filterPriority = this.dataset.filterVal;
+      applyAllFilters();
     });
   });
 
-  function applyFilter() {
+  document.querySelectorAll('[data-filter-type="status"]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('[data-filter-type="status"]').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      filterStatus = this.dataset.filterVal;
+      applyAllFilters();
+    });
+  });
+
+  const catSelect = document.getElementById('category-filter-select');
+  if (catSelect) {
+    catSelect.addEventListener('change', function () {
+      filterCategory = this.value;
+      applyAllFilters();
+    });
+  }
+
+  const resetBtn = document.getElementById('reset-filters-btn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+      filterPriority = 'all';
+      filterStatus = 'all';
+      filterCategory = 'all';
+
+      document.querySelectorAll('[data-filter-type="priority"]').forEach(b => {
+        b.classList.toggle('active', b.dataset.filterVal === 'all');
+      });
+      document.querySelectorAll('[data-filter-type="status"]').forEach(b => {
+        b.classList.toggle('active', b.dataset.filterVal === 'all');
+      });
+      if (catSelect) catSelect.value = 'all';
+
+      applyAllFilters();
+    });
+  }
+
+  function applyAllFilters() {
     allMarkers.forEach(marker => {
       const d = marker._reportData;
-      let match;
-      if (activeFilter === 'all') {
-        match = true;
-      } else if (activeFilter === 'Resolved') {
-        match = d.status === 'Resolved';
+      let matchPriority = (filterPriority === 'all') || (d.priority === filterPriority);
+      let matchStatus = (filterStatus === 'all') || (d.status === filterStatus);
+      let matchCategory = (filterCategory === 'all') || (d.category === filterCategory);
+
+      if (matchPriority && matchStatus && matchCategory) {
+        if (!map.hasLayer(marker)) {
+          marker.addTo(map);
+        }
       } else {
-        match = d.priority === activeFilter && d.status !== 'Resolved';
-      }
-      if (match) {
-        marker.addTo(map);
-      } else {
-        marker.remove();
+        if (map.hasLayer(marker)) {
+          marker.remove();
+        }
       }
     });
     updateCount();
+    updateHeatmapLayer();
   }
 
   function updateCount() {
@@ -276,8 +1134,10 @@
   function escHtml(str) {
     if (!str) return '';
     return String(str)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
 })();

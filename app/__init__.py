@@ -78,10 +78,30 @@ def create_app(config_class=None):
             "AdminAction": AdminAction,
         }
 
+    _ensure_schema(app)
+
     return app
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _ensure_schema(app):
+    """Ensure newly added columns exist in existing SQLite databases without failing."""
+    with app.app_context():
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            if "reports" in inspector.get_table_names():
+                cols = [c["name"] for c in inspector.get_columns("reports")]
+                if "is_anonymous" not in cols:
+                    db.session.execute(text("ALTER TABLE reports ADD COLUMN is_anonymous BOOLEAN DEFAULT 0 NOT NULL"))
+                    db.session.commit()
+                if "is_emergency" not in cols:
+                    db.session.execute(text("ALTER TABLE reports ADD COLUMN is_emergency BOOLEAN DEFAULT 0 NOT NULL"))
+                    db.session.commit()
+        except Exception:
+            pass
+
 
 def _ensure_directories(app):
     """Create necessary runtime directories if they don't exist."""
@@ -129,6 +149,10 @@ def _register_blueprints(app):
     @app.route("/logout", methods=["POST"])
     def logout_alias():
         return redirect(url_for("auth.logout"), 307)
+
+    @app.route("/campus-map")
+    def campus_map_alias():
+        return redirect(url_for("reports.campus_map"))
 
 
 def _register_error_handlers(app):

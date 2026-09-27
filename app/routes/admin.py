@@ -29,6 +29,8 @@ def dashboard():
     by_status = {s: Report.query.filter_by(status=s).count() for s in STATUSES}
     open_reports = Report.query.filter(Report.status.in_(["Reported", "In Progress"])).count()
     high_critical = Report.query.filter(Report.priority.in_(["High", "Critical"])).count()
+    emergency_total = Report.query.filter_by(is_emergency=True).count()
+    emergency_open = Report.query.filter(Report.is_emergency == True, Report.status.in_(["Reported", "In Progress"])).count()
     recent = (
         Report.query
         .order_by(Report.created_at.desc())
@@ -42,6 +44,8 @@ def dashboard():
         open_reports=open_reports,
         high_critical=high_critical,
         critical=high_critical,
+        emergency_total=emergency_total,
+        emergency_open=emergency_open,
         recent=recent,
         statuses=STATUSES,
         categories=CATEGORIES,
@@ -58,6 +62,7 @@ def reports():
     category_filter = request.args.get("category", "")
     priority_filter = request.args.get("priority", "")
     status_filter = request.args.get("status", "")
+    emergency_filter = request.args.get("emergency", "").strip()
     search_query = request.args.get("q", "").strip()
 
     query = Report.query
@@ -68,6 +73,10 @@ def reports():
         query = query.filter_by(priority=priority_filter)
     if status_filter and status_filter in STATUSES:
         query = query.filter_by(status=status_filter)
+    if emergency_filter in ("true", "1", "emergency", "yes"):
+        query = query.filter_by(is_emergency=True)
+    elif emergency_filter in ("false", "0", "non-emergency", "no"):
+        query = query.filter_by(is_emergency=False)
     if search_query:
         query = query.filter(
             db.or_(
@@ -90,6 +99,7 @@ def reports():
             "category": category_filter,
             "priority": priority_filter,
             "status": status_filter,
+            "emergency": emergency_filter,
             "q": search_query,
         },
     )

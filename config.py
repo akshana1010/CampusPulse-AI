@@ -36,8 +36,8 @@ class Config:
 
     # ── Campus Map Defaults ───────────────────────────────────────────────────
     CAMPUS_NAME = os.environ.get("CAMPUS_NAME", "Sri Manakula Vinayagar Engineering College (SMVEC)")
-    CAMPUS_LAT = float(os.environ.get("CAMPUS_LAT", "11.9213"))
-    CAMPUS_LNG = float(os.environ.get("CAMPUS_LNG", "79.6385"))
+    CAMPUS_LAT = float(os.environ.get("CAMPUS_LAT", "11.91411"))
+    CAMPUS_LNG = float(os.environ.get("CAMPUS_LNG", "79.63558"))
     CAMPUS_ZOOM = int(os.environ.get("CAMPUS_ZOOM", "16"))
 
     # ── Rate Limiting ─────────────────────────────────────────────────────────

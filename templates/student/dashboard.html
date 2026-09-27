@@ -65,7 +65,7 @@
         </div>
       </div>
       <div style="height: 220px; position: relative; width: 100%;">
-        <canvas id="studentCategoryChart"></canvas>
+        <canvas id="studentCategoryChart" data-counts='{{ category_counts | tojson }}'></canvas>
       </div>
     </div>
   </div>
@@ -80,6 +80,16 @@
       <article class="report-card" id="report-{{ report.id }}">
         <div class="report-card-header">
           <div class="report-badges">
+            {% if report.is_emergency %}
+            <span class="badge" style="background: rgba(239, 68, 68, 0.18); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.72rem; padding: 2px 7px; font-weight: 700;">
+              🚨 Emergency
+            </span>
+            {% endif %}
+            {% if report.is_anonymous %}
+            <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); font-size: 0.72rem; padding: 2px 7px;">
+              🔒 Anonymous
+            </span>
+            {% endif %}
             <span class="badge badge--category">{{ report.category }}</span>
             <span class="badge badge--priority badge--{{ report.priority | lower }}">
               {{ report.priority }}
@@ -128,12 +138,23 @@
             {{ report.ai_summary }}
           </div>
           {% endif %}
+          {% if report.ai_suggested_solution %}
+          <div style="font-size: 0.80rem; color: var(--clr-text); line-height: 1.4; border-top: 1px dashed rgba(99, 102, 241, 0.25); padding-top: 6px; margin-top: 6px; display: flex; align-items: flex-start; gap: 6px;">
+            <span>🤖</span>
+            <div><strong style="color: var(--clr-primary);">Suggested Action:</strong> {{ report.ai_suggested_solution }}</div>
+          </div>
+          {% endif %}
         </div>
         {% endif %}
 
         <div class="report-card-footer">
           <span class="report-meta">📍 {{ report.location_label or 'Location not specified' }}</span>
           <span class="report-meta">🕐 {{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</span>
+          {% if report.upvote_count > 0 %}
+          <span class="report-meta" style="color: var(--clr-primary); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+            👍 {{ report.upvote_count }} support{{ 's' if report.upvote_count != 1 else '' }}
+          </span>
+          {% endif %}
           <a href="{{ url_for('reports.detail', report_id=report.id) }}" class="btn btn-sm btn-outline">
             View →
           </a>
@@ -179,7 +200,13 @@
     Chart.defaults.borderColor = "#2e3250";
     Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
 
-    const categoryData = {{ category_counts | tojson }};
+    var rawData = categoryCanvas.getAttribute("data-counts");
+    var categoryData = {};
+    try {
+      categoryData = JSON.parse(rawData || "{}");
+    } catch (e) {
+      categoryData = {};
+    }
     const labels = Object.keys(categoryData);
     const data = Object.values(categoryData);
 
