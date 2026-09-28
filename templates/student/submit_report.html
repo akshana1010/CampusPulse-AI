@@ -6,29 +6,31 @@
 <style>
   .location-map-wrap { position: relative; }
   .map-instruction-banner {
-    background: rgba(99,102,241,0.12);
+    background: var(--clr-primary-light);
     border: 1px dashed var(--clr-primary);
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    padding: 8px 14px;
-    font-size: 0.82rem;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
     color: var(--clr-primary);
     display: flex;
     align-items: center;
     gap: 8px;
   }
   .map-instruction-banner.pinned {
-    background: rgba(34,197,94,0.1);
+    background: var(--clr-success-bg);
     border-color: var(--clr-success);
-    color: var(--clr-success);
+    color: var(--clr-success-text);
   }
   .location-map {
-    height: 300px;
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    height: 320px;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
     overflow: hidden;
     border: 1px solid var(--clr-border);
     border-top: none;
     margin-bottom: var(--space-sm);
     cursor: crosshair;
+    box-shadow: var(--shadow-sm);
   }
   .map-btn-row {
     display: flex;
@@ -37,46 +39,56 @@
     flex-wrap: wrap;
   }
   .btn-map-geo {
-    font-size: 0.8rem;
-    padding: 5px 12px;
-    background: transparent;
-    border: 1px solid var(--clr-border);
+    font-size: 0.825rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    background: #ffffff;
+    border: 1px solid var(--clr-border-light);
     border-radius: var(--radius-md);
-    color: var(--clr-text-muted);
+    color: var(--clr-text-secondary);
     cursor: pointer;
+    box-shadow: var(--shadow-xs);
     transition: all var(--transition-fast);
   }
   .btn-map-geo:hover {
     border-color: var(--clr-primary);
     color: var(--clr-primary);
+    background: var(--clr-primary-light);
   }
   .btn-map-clear {
-    font-size: 0.8rem;
-    padding: 5px 12px;
-    background: transparent;
-    border: 1px solid var(--clr-border);
+    font-size: 0.825rem;
+    font-weight: 500;
+    padding: 6px 14px;
+    background: #ffffff;
+    border: 1px solid var(--clr-border-light);
     border-radius: var(--radius-md);
-    color: var(--clr-text-muted);
+    color: var(--clr-danger-text);
     cursor: pointer;
+    box-shadow: var(--shadow-xs);
+    transition: all var(--transition-fast);
+  }
+  .btn-map-clear:hover {
+    border-color: var(--clr-danger);
+    background: var(--clr-danger-bg);
   }
   .location-coords {
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     color: var(--clr-text-muted);
     font-family: monospace;
     margin-top: 4px;
   }
-  .location-coords.has-pin { color: var(--clr-success); }
+  .location-coords.has-pin { color: var(--clr-success-text); font-weight: 600; }
   .building-select-wrap {
     margin-bottom: var(--space-sm);
   }
   /* Duplicate Warning Box */
   .duplicate-warning-banner {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(239, 68, 68, 0.1) 100%);
-    border: 1px solid rgba(245, 158, 11, 0.45);
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    margin-bottom: var(--space-lg);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, #fffbeb 0%, #fef2f2 100%);
+    border: 1px solid #fde68a;
+    border-radius: var(--radius-xl);
+    padding: var(--space-xl);
+    margin-bottom: var(--space-xl);
+    box-shadow: var(--shadow-md);
     animation: fadeIn 0.3s ease-out;
   }
   .duplicate-header {
@@ -86,28 +98,29 @@
     margin-bottom: var(--space-md);
   }
   .duplicate-icon {
-    font-size: 1.8rem;
+    font-size: 2rem;
     line-height: 1;
     flex-shrink: 0;
   }
   .duplicate-title {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #fbbf24;
+    color: #b45309;
     margin: 0 0 4px 0;
     font-family: var(--font-display);
   }
   .duplicate-subtitle {
-    font-size: 0.85rem;
-    color: var(--clr-text-muted);
+    font-size: 0.875rem;
+    color: var(--clr-text-secondary);
     margin: 0;
   }
   .duplicate-card {
-    background: var(--clr-bg-card);
+    background: #ffffff;
     border: 1px solid var(--clr-border);
-    border-radius: var(--radius-md);
-    padding: var(--space-md);
-    margin-bottom: var(--space-md);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: var(--shadow-xs);
   }
   .duplicate-card-header {
     display: flex;
@@ -117,16 +130,16 @@
     margin-bottom: 8px;
   }
   .duplicate-card-title {
-    font-weight: 600;
-    font-size: 0.95rem;
+    font-weight: 700;
+    font-size: 1rem;
     color: var(--clr-text);
   }
   .duplicate-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-md);
-    font-size: 0.82rem;
-    color: var(--clr-text-muted);
+    gap: var(--space-lg);
+    font-size: 0.85rem;
+    color: var(--clr-text-secondary);
   }
   .duplicate-meta-item {
     display: flex;
@@ -134,16 +147,16 @@
     gap: 6px;
   }
   .duplicate-similarity-badge {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-    font-weight: 600;
-    padding: 2px 8px;
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 700;
+    padding: 2px 10px;
     border-radius: var(--radius-full);
-    border: 1px solid rgba(245, 158, 11, 0.35);
+    border: 1px solid #fde68a;
   }
   .duplicate-actions {
     display: flex;
-    gap: var(--space-sm);
+    gap: var(--space-md);
     flex-wrap: wrap;
   }
 </style>
@@ -284,15 +297,15 @@
     <!-- Emergency / Safety Issue Option -->
     <div class="form-section">
       <div class="form-group" style="margin-bottom: 0;">
-        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--radius-md);">
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: var(--clr-danger-bg); border: 1px solid var(--clr-danger-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);">
           <input type="checkbox" id="is_emergency" name="is_emergency" value="1"
                  {% if form_data and form_data.is_emergency %}checked{% endif %}
-                 style="width: 18px; height: 18px; margin-top: 2px; accent-color: #ef4444; cursor: pointer;" />
+                 style="width: 18px; height: 18px; margin-top: 2px; accent-color: var(--clr-danger); cursor: pointer;" />
           <label for="is_emergency" style="cursor: pointer; margin: 0; user-select: none;">
-            <strong style="color: #ef4444; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+            <strong style="color: var(--clr-danger-text); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
               🚨 Emergency / Safety Issue
             </strong>
-            <p style="margin: 3px 0 0 0; font-size: 0.82rem; color: var(--clr-text-muted);">
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--clr-text-secondary); line-height: 1.45;">
               Flag this report as an urgent campus emergency or safety hazard for immediate administrator attention.
             </p>
           </label>
@@ -303,15 +316,15 @@
     <!-- Anonymous Reporting Toggle Section -->
     <div class="form-section">
       <div class="form-group" style="margin-bottom: 0;">
-        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-md);">
+        <div style="display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; background: var(--clr-purple-light); border: 1px solid var(--clr-purple-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);">
           <input type="checkbox" id="is_anonymous" name="is_anonymous" value="1"
                  {% if form_data and form_data.is_anonymous %}checked{% endif %}
-                 style="width: 18px; height: 18px; margin-top: 2px; accent-color: var(--clr-primary); cursor: pointer;" />
+                 style="width: 18px; height: 18px; margin-top: 2px; accent-color: var(--clr-purple); cursor: pointer;" />
           <label for="is_anonymous" style="cursor: pointer; margin: 0; user-select: none;">
-            <strong style="color: var(--clr-text); font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+            <strong style="color: var(--clr-purple); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
               🔒 Report Anonymously
             </strong>
-            <p style="margin: 3px 0 0 0; font-size: 0.82rem; color: var(--clr-text-muted);">
+            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--clr-text-secondary); line-height: 1.45;">
               Your identity will be hidden from administrators when enabled.
             </p>
           </label>

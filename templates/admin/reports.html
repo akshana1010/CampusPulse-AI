@@ -85,18 +85,20 @@
       <tbody>
         {% for report in reports.items %}
         <tr id="row-{{ report.id }}">
-          <td><a href="{{ url_for('admin.report_detail', report_id=report.id) }}">#{{ report.id }}</a></td>
+          <td><a href="{{ url_for('admin.report_detail', report_id=report.id) }}" style="font-weight: 700;">#{{ report.id }}</a></td>
           <td class="td-title">
             {% if report.is_emergency %}
-            <span class="badge" style="background: rgba(239, 68, 68, 0.18); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); font-size: 0.68rem; padding: 1px 5px; margin-right: 4px; font-weight: 700;">🚨 Emergency</span>
+            <span class="badge" style="background: var(--clr-danger-bg); color: var(--clr-danger-text); border: 1px solid var(--clr-danger-border); font-size: 0.68rem; padding: 1px 6px; margin-right: 4px; font-weight: 700;">🚨 Emergency</span>
             {% endif %}
-            {{ report.title[:55] }}{% if report.title|length > 55 %}…{% endif %}
+            <a href="{{ url_for('admin.report_detail', report_id=report.id) }}" style="color: var(--clr-text);">
+              {{ report.title[:55] }}{% if report.title|length > 55 %}…{% endif %}
+            </a>
           </td>
           <td>
             {% if report.is_anonymous %}
-            <span style="color: #818cf8; font-size: 0.82rem; font-weight: 500;">🔒 Anonymous Student</span>
+            <span style="color: var(--clr-purple); font-size: 0.825rem; font-weight: 600;">🔒 Anonymous Student</span>
             {% else %}
-            {{ report.author.name if report.author else '—' }}
+            <span style="font-size: 0.875rem; font-weight: 500;">{{ report.author.name if report.author else '—' }}</span>
             {% endif %}
           </td>
           <td><span class="badge badge--category">{{ report.category }}</span></td>
@@ -110,14 +112,14 @@
             </select>
           </td>
           <td>
-            <span class="badge" style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); font-size:0.75rem; padding:2px 7px;">
+            <span class="badge" style="background: var(--clr-primary-light); color: var(--clr-primary); border: 1px solid rgba(37, 99, 235, 0.2); font-size: 0.75rem; padding: 2px 8px; font-weight: 600;">
               👍 {{ report.upvote_count }}
             </span>
           </td>
-          <td>{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</td>
+          <td style="font-size: 0.825rem; color: var(--clr-text-muted);">{{ report.created_at.strftime('%d %b %Y') if report.created_at else '—' }}</td>
           <td>
             <a href="{{ url_for('admin.report_detail', report_id=report.id) }}"
-               class="btn btn-sm btn-outline">View</a>
+               class="btn btn-sm btn-outline">View →</a>
           </td>
         </tr>
         {% else %}

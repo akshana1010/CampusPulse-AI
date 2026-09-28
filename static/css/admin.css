@@ -1,13 +1,40 @@
-/* static/css/admin.css – Admin-specific styles */
+/* static/css/admin.css – Admin-specific modern light theme styles */
 
 .status-select {
   cursor: pointer;
-  transition: border-color 150ms ease;
+  background-color: #ffffff;
+  border: 1px solid var(--clr-border-light);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--clr-text);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-.status-select:hover { border-color: var(--clr-primary); }
+
+.status-select:hover,
+.status-select:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 2px var(--clr-primary-glow);
+  outline: none;
+}
 
 .location-label-text {
   font-size: 0.875rem;
-  color: var(--clr-text-muted);
+  font-weight: 500;
+  color: var(--clr-text-secondary);
   margin-bottom: var(--space-sm);
+}
+
+.admin-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--clr-purple-light);
+  color: var(--clr-purple);
+  border: 1px solid var(--clr-purple-border);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
 }

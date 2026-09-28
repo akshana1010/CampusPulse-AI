@@ -1,31 +1,32 @@
 /**
  * CampusPulse AI – charts.js
  * Fetches analytics data from /analytics/* endpoints and
- * renders Chart.js charts on the admin dashboard.
+ * renders Chart.js charts on the admin dashboard with light theme palette.
  */
 
 (function () {
   "use strict";
 
-  // Shared Chart.js defaults for dark mode
-  Chart.defaults.color = "#8b90a8";
-  Chart.defaults.borderColor = "#2e3250";
-  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  // Shared Chart.js defaults for modern clean light theme
+  Chart.defaults.color = "#64748b";
+  Chart.defaults.borderColor = "#e2e8f0";
+  Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
 
   const PALETTE = {
-    primary:  "#6c63ff",
-    accent:   "#00d4aa",
-    danger:   "#ef4444",
-    warning:  "#f59e0b",
-    info:     "#3b82f6",
-    success:  "#22c55e",
-    muted:    "#6b7280",
+    primary:  "#2563eb",
+    purple:   "#7c3aed",
+    accent:   "#0d9488",
+    danger:   "#dc2626",
+    warning:  "#d97706",
+    info:     "#0284c7",
+    success:  "#16a34a",
+    muted:    "#64748b",
   };
 
   const CATEGORY_COLORS = [
-    "#6c63ff","#00d4aa","#ef4444","#f59e0b",
-    "#3b82f6","#22c55e","#a855f7","#ec4899",
-    "#14b8a6","#f97316",
+    "#2563eb", "#0d9488", "#dc2626", "#ea580c",
+    "#0284c7", "#16a34a", "#7c3aed", "#db2777",
+    "#0891b2", "#d97706",
   ];
 
   const STATUS_COLORS = {
@@ -49,7 +50,7 @@
               {
                 label: "Reports",
                 data: data.data,
-                backgroundColor: CATEGORY_COLORS,
+                backgroundColor: CATEGORY_COLORS.slice(0, data.labels.length),
                 borderRadius: 6,
                 borderSkipped: false,
               },
@@ -59,11 +60,25 @@
             responsive: true,
             plugins: {
               legend: { display: false },
-              tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} reports` } },
+              tooltip: {
+                backgroundColor: "#0f172a",
+                titleColor: "#ffffff",
+                bodyColor: "#f8fafc",
+                padding: 10,
+                cornerRadius: 8,
+                callbacks: { label: (ctx) => ` ${ctx.raw} reports` }
+              },
             },
             scales: {
-              y: { beginAtZero: true, ticks: { stepSize: 1 } },
-              x: { ticks: { maxRotation: 45, font: { size: 11 } } },
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: "#64748b" },
+                grid: { color: "#f1f5f9" }
+              },
+              x: {
+                ticks: { maxRotation: 45, font: { size: 11 }, color: "#64748b" },
+                grid: { display: false }
+              },
             },
           },
         });
@@ -89,9 +104,9 @@
               {
                 data: values,
                 backgroundColor: colors,
-                borderColor: "#1a1d27",
+                borderColor: "#ffffff",
                 borderWidth: 3,
-                hoverOffset: 8,
+                hoverOffset: 6,
               },
             ],
           },
@@ -101,8 +116,15 @@
             plugins: {
               legend: {
                 position: "bottom",
-                labels: { padding: 16, boxWidth: 14, font: { size: 12 } },
+                labels: { padding: 16, boxWidth: 12, font: { size: 12 }, color: "#334155" },
               },
+              tooltip: {
+                backgroundColor: "#0f172a",
+                titleColor: "#ffffff",
+                bodyColor: "#f8fafc",
+                padding: 10,
+                cornerRadius: 8,
+              }
             },
           },
         });
@@ -116,7 +138,6 @@
     fetch("/analytics/trends?days=30")
       .then((r) => r.json())
       .then((data) => {
-        // Format labels as "DD MMM"
         const labels = data.labels.map((d) => {
           const dt = new Date(d);
           return dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -131,12 +152,14 @@
                 label: "Reports Submitted",
                 data: data.data,
                 borderColor: PALETTE.primary,
-                backgroundColor: "rgba(108,99,255,0.1)",
-                borderWidth: 2,
+                backgroundColor: "rgba(37, 99, 235, 0.08)",
+                borderWidth: 2.5,
                 fill: true,
-                tension: 0.4,
+                tension: 0.35,
                 pointBackgroundColor: PALETTE.primary,
-                pointRadius: 3,
+                pointBorderColor: "#ffffff",
+                pointBorderWidth: 2,
+                pointRadius: 4,
                 pointHoverRadius: 6,
               },
             ],
@@ -145,11 +168,26 @@
             responsive: true,
             plugins: {
               legend: { display: false },
-              tooltip: { mode: "index", intersect: false },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+                backgroundColor: "#0f172a",
+                titleColor: "#ffffff",
+                bodyColor: "#f8fafc",
+                padding: 10,
+                cornerRadius: 8,
+              },
             },
             scales: {
-              y: { beginAtZero: true, ticks: { stepSize: 1 } },
-              x: { ticks: { maxTicksLimit: 10 } },
+              y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: "#64748b" },
+                grid: { color: "#f1f5f9" }
+              },
+              x: {
+                ticks: { maxTicksLimit: 10, color: "#64748b" },
+                grid: { display: false }
+              },
             },
             interaction: { mode: "nearest", axis: "x", intersect: false },
           },

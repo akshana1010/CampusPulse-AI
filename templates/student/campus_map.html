@@ -17,7 +17,7 @@
 
   /* ── Live Problem Map Card (Primary Interactive Map) ───────────────── */
   .interactive-map-card {
-    background: var(--clr-bg-card);
+    background: #ffffff;
     border: 1px solid var(--clr-border);
     border-radius: var(--radius-xl);
     overflow: hidden;
@@ -32,7 +32,7 @@
     justify-content: space-between;
     gap: var(--space-md);
     padding: var(--space-md) var(--space-xl);
-    background: var(--clr-bg-card);
+    background: #ffffff;
     border-bottom: 1px solid var(--clr-border);
     flex-wrap: wrap;
   }
@@ -55,15 +55,17 @@
   }
 
   .map-stat-pill {
-    background: var(--clr-bg-card-2);
+    background: var(--clr-bg-subtle);
     border: 1px solid var(--clr-border);
     border-radius: var(--radius-full);
     padding: 4px 14px;
-    font-size: 0.8rem;
-    color: var(--clr-text-muted);
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: var(--clr-text-secondary);
   }
   .map-stat-pill strong {
     color: var(--clr-primary);
+    font-weight: 700;
   }
 
   .map-toolbar-actions {
@@ -75,27 +77,30 @@
 
   .heatmap-toggle-btn {
     font-size: 0.85rem;
+    font-weight: 600;
     padding: 6px 14px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     border-radius: var(--radius-md);
     cursor: pointer;
-    background: var(--clr-bg-card-2);
-    border: 1px solid var(--clr-border);
-    color: var(--clr-text);
+    background: #ffffff;
+    border: 1px solid var(--clr-border-light);
+    color: var(--clr-text-secondary);
+    box-shadow: var(--shadow-xs);
     transition: all var(--transition-fast);
   }
   .heatmap-toggle-btn:hover {
     border-color: #ef4444;
-    color: #fca5a5;
+    color: #dc2626;
+    background: #fef2f2;
   }
   .heatmap-toggle-btn.active {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(249, 115, 22, 0.25) 100%);
+    background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%);
     border-color: #ef4444;
-    color: #fecaca;
-    font-weight: 600;
-    box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+    color: #dc2626;
+    font-weight: 700;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
   }
 
   /* ── Filter Bar ────────────────────────────────────────────────────── */
@@ -104,7 +109,7 @@
     flex-direction: column;
     gap: var(--space-sm);
     padding: var(--space-md) var(--space-xl);
-    background: rgba(18, 22, 34, 0.95);
+    background: var(--clr-bg-subtle);
     border-bottom: 1px solid var(--clr-border);
   }
 
@@ -135,19 +140,22 @@
     padding: 4px 12px;
     border-radius: var(--radius-full);
     border: 1px solid var(--clr-border);
-    background: var(--clr-bg-card);
-    color: var(--clr-text-muted);
+    background: #ffffff;
+    color: var(--clr-text-secondary);
     font-size: 0.8rem;
+    font-weight: 500;
     cursor: pointer;
     transition: all var(--transition-fast);
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    box-shadow: var(--shadow-xs);
   }
 
   .filter-chip:hover {
     border-color: var(--clr-primary);
-    color: var(--clr-text);
+    color: var(--clr-primary);
+    background: var(--clr-primary-light);
   }
 
   .filter-chip.active {
@@ -159,34 +167,38 @@
 
   .filter-select {
     padding: 5px 12px;
-    background: var(--clr-bg-card);
-    border: 1px solid var(--clr-border);
+    background: #ffffff;
+    border: 1px solid var(--clr-border-light);
     border-radius: var(--radius-md);
     color: var(--clr-text);
-    font-size: 0.82rem;
+    font-size: 0.825rem;
     cursor: pointer;
     outline: none;
-    transition: border-color var(--transition-fast);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    box-shadow: var(--shadow-xs);
   }
   .filter-select:focus {
     border-color: var(--clr-primary);
+    box-shadow: 0 0 0 2px var(--clr-primary-glow);
   }
 
   .filter-reset-btn {
     margin-left: auto;
-    background: transparent;
-    border: 1px solid var(--clr-border);
+    background: #ffffff;
+    border: 1px solid var(--clr-border-light);
     color: var(--clr-text-muted);
     padding: 4px 12px;
     border-radius: var(--radius-md);
     font-size: 0.78rem;
+    font-weight: 500;
     cursor: pointer;
+    box-shadow: var(--shadow-xs);
     transition: all var(--transition-fast);
   }
   .filter-reset-btn:hover {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #ef4444;
+    background: var(--clr-danger-bg);
+    border-color: var(--clr-danger-border);
+    color: var(--clr-danger-text);
   }
 
   /* ── Leaflet Canvas ────────────────────────────────────────────────── */
@@ -195,7 +207,7 @@
     width: 100%;
     min-height: 620px;
     height: 68vh;
-    background: #0f1422;
+    background: #f8fafc;
   }
 
   #campus-map {
@@ -211,12 +223,12 @@
     top: 80px;
     left: 12px;
     z-index: 1000;
-    background: var(--clr-bg-card);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: #ffffff;
+    border: 1px solid var(--clr-border-light);
     border-radius: var(--radius-md);
     color: var(--clr-text);
-    padding: 6px 12px;
-    font-size: 0.78rem;
+    padding: 6px 14px;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     box-shadow: var(--shadow-md);
@@ -233,15 +245,15 @@
 
   /* Leaflet Popups */
   .leaflet-popup-content-wrapper {
-    background: var(--clr-bg-card) !important;
+    background: #ffffff !important;
     color: var(--clr-text) !important;
     border: 1px solid var(--clr-border) !important;
     border-radius: var(--radius-lg) !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.15) !important;
     padding: 4px !important;
   }
   .leaflet-popup-tip {
-    background: var(--clr-bg-card) !important;
+    background: #ffffff !important;
   }
 
   .map-popup-card {
@@ -277,59 +289,59 @@
     border-radius: var(--radius-full);
   }
   .popup-badge--category {
-    background: rgba(99, 102, 241, 0.15);
-    color: #818cf8;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: var(--clr-primary-light);
+    color: var(--clr-primary);
+    border: 1px solid rgba(37, 99, 235, 0.25);
   }
   .popup-badge--critical {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: var(--clr-danger-bg);
+    color: var(--clr-danger-text);
+    border: 1px solid var(--clr-danger-border);
   }
   .popup-badge--high {
-    background: rgba(249, 115, 22, 0.15);
-    color: #fb923c;
-    border: 1px solid rgba(249, 115, 22, 0.3);
+    background: var(--clr-warning-bg);
+    color: var(--clr-warning-text);
+    border: 1px solid var(--clr-warning-border);
   }
   .popup-badge--medium {
-    background: rgba(234, 179, 8, 0.15);
-    color: #facc15;
-    border: 1px solid rgba(234, 179, 8, 0.3);
+    background: #fefce8;
+    color: #a16207;
+    border: 1px solid #fef08a;
   }
   .popup-badge--low {
-    background: rgba(100, 116, 139, 0.15);
-    color: #94a3b8;
-    border: 1px solid rgba(100, 116, 139, 0.3);
+    background: var(--clr-bg-subtle);
+    color: var(--clr-text-secondary);
+    border: 1px solid var(--clr-border-light);
   }
   .popup-badge--status {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--clr-text-muted);
-    border: 1px solid var(--clr-border);
+    background: var(--clr-bg-subtle);
+    color: var(--clr-text-secondary);
+    border: 1px solid var(--clr-border-light);
   }
   .popup-badge--resolved {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: var(--clr-success-bg);
+    color: var(--clr-success-text);
+    border: 1px solid var(--clr-success-border);
   }
 
   .map-popup-desc {
-    font-size: 0.82rem;
-    color: var(--clr-text-muted);
-    line-height: 1.4;
+    font-size: 0.825rem;
+    color: var(--clr-text-secondary);
+    line-height: 1.45;
     margin: 0;
     border-top: 1px solid var(--clr-border);
     padding-top: 6px;
   }
   .map-popup-location {
     font-size: 0.78rem;
-    color: #38bdf8;
+    color: var(--clr-primary);
     display: flex;
     align-items: center;
     gap: 4px;
-    font-weight: 500;
+    font-weight: 600;
   }
   .map-popup-btn {
-    font-size: 0.82rem;
+    font-size: 0.825rem;
     color: var(--clr-primary);
     text-decoration: none;
     font-weight: 600;
@@ -340,6 +352,7 @@
     padding-top: 4px;
   }
   .map-popup-btn:hover {
+    color: var(--clr-primary-hover);
     text-decoration: underline;
   }
 
@@ -363,7 +376,7 @@
   }
   .building-popup-desc {
     font-size: 0.80rem;
-    color: var(--clr-text-muted);
+    color: var(--clr-text-secondary);
     line-height: 1.35;
     margin: 0;
   }
@@ -371,16 +384,16 @@
     font-size: 0.78rem;
     font-weight: 600;
     padding: 3px 8px;
-    background: rgba(99, 102, 241, 0.15);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: var(--clr-purple-light);
+    border: 1px solid var(--clr-purple-border);
     border-radius: var(--radius-sm);
-    color: #818cf8;
+    color: var(--clr-purple);
     margin-top: 4px;
   }
 
   /* Legend */
   .map-legend {
-    background: rgba(18, 22, 34, 0.92);
+    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(8px);
     border: 1px solid var(--clr-border);
     border-radius: var(--radius-md);
@@ -408,7 +421,7 @@
     height: 12px;
     border-radius: 50%;
     flex-shrink: 0;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(0, 0, 0, 0.1);
   }
 
   /* Empty overlay */
@@ -420,7 +433,7 @@
     z-index: 500;
     text-align: center;
     pointer-events: none;
-    background: rgba(26, 29, 39, 0.92);
+    background: rgba(255, 255, 255, 0.95);
     border: 1px solid var(--clr-border);
     border-radius: var(--radius-lg);
     padding: var(--space-xl);
@@ -434,7 +447,7 @@
 
   /* ── SMVEC Campus Blueprint / Reference Map Section ────────────────── */
   .static-map-card {
-    background: var(--clr-bg-card);
+    background: #ffffff;
     border: 1px solid var(--clr-border);
     border-radius: var(--radius-xl);
     overflow: hidden;
@@ -449,7 +462,7 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: var(--space-md);
-    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    background: #ffffff;
   }
 
   .static-map-title-group {
@@ -465,8 +478,8 @@
     width: 40px;
     height: 40px;
     border-radius: var(--radius-md);
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(99, 102, 241, 0.25);
+    background: var(--clr-primary-light);
+    border: 1px solid rgba(37, 99, 235, 0.2);
     font-size: 1.25rem;
   }
 
@@ -480,7 +493,7 @@
 
   .static-map-subtitle {
     margin: 2px 0 0;
-    font-size: 0.82rem;
+    font-size: 0.825rem;
     color: var(--clr-text-muted);
   }
 
@@ -489,7 +502,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #0b0f19;
+    background: var(--clr-bg-subtle);
   }
 
   .static-map-image-wrapper {
@@ -500,9 +513,9 @@
     align-items: center;
     border-radius: var(--radius-lg);
     overflow: hidden;
-    background: #070a12;
+    background: #ffffff;
     border: 1px solid var(--clr-border);
-    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-sm);
   }
 
   .smvec-map-img {
